@@ -12,7 +12,7 @@ int main(int argc, char **argv)
     }
     else
     {
-        std::cerr << "Usage: ./IRC port password" << std::endl;
+        std::cerr << "Usage: ./ircserv <port> <password>" << std::endl;
         return 1;
     }
 }

@@ -22,7 +22,7 @@ class Client
 
         // Buffer handling
         void appendBuffer(const std::string& data);
-        std::string extractMessage(); // extract until /r/n
+        std::string extractMessage(); // extract until \r\n
 
 };
 

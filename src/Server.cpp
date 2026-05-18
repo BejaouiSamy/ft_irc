@@ -1,5 +1,6 @@
 #include "Server.hpp"
 
+#include <iostream>
 #include <sys/socket.h>
 #include <fcntl.h>
 #include <stdexcept>
@@ -21,3 +22,18 @@ Server::Server(int port, std::string password)
         throw std::runtime_error("fcntl() failed");
     // o_nonblock avoid the program to block the execution to wait. So he gonna answer with data or no.
 }
+
+void Server::run()
+{
+    std::cout << "IRC server running on port " << _port << std::endl;
+}
+/*
+void Server::acceptClient()
+{
+}
+
+void Server::handleClient(int fd)
+{
+    (void)fd;
+}
+*/

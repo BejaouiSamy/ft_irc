@@ -24,4 +24,4 @@ class Channel
         void broadcast(const std::string& msg, Client* except = NULL);
 };
 
-#endif;
+#endif

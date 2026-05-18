@@ -1,0 +1,86 @@
+# ========================================
+# 42 PROJECTS — COMMON BUILD IGNORE RULES
+# ========================================
+
+# Object and dependency files
+*.o                  # Compiled object files
+*.d                  # Dependency files from -MMD flag
+
+# Static and shared libraries
+*.a                  # Static libraries (e.g., libft.a)
+*.so                 # Shared objects
+*.so.*
+*.la
+*.lo
+
+# Linker and binary output
+*.elf
+*.out
+*.hex
+*.map
+*.exp
+*.app
+*.exe
+*.x86_64
+*.i*86
+
+# Precompiled headers
+*.gch
+*.pch
+
+# Debug and profiling artifacts
+*.dSYM/
+*.pdb
+*.idb
+*.su
+*.ilk
+
+# History (optional, if you log shell history)
+.history
+
+# ========================================
+# EDITORS AND DEVELOPMENT ENVIRONMENTS
+# ========================================
+
+# Vim
+*.swp
+*.swo
+*.swn
+
+# VS Code
+.vscode/
+
+# CLion / JetBrains
+.idea/
+
+# Visual Studio
+*.user
+*.suo
+*.sln.docstates
+*.VC.db
+*.ncb
+*.opensdf
+*.sdf
+*.cache
+
+# ========================================
+# SYSTEM AND BACKUP FILES
+# ========================================
+
+# macOS metadata
+.DS_Store
+
+# Backup files
+*~
+*.bak
+
+# ========================================
+# OPTIONAL — Kernel Module Build Output
+# ========================================
+*.mod*
+*.cmd
+.tmp_versions/
+modules.order
+Module.symvers
+Mkfile.old
+dkms.conf
