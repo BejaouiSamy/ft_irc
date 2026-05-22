@@ -1,5 +1,3 @@
-
-
 *This project has been created as part of the 42 curriculum by bsamy & chrrodri.*
 
 # ft_irc — Internet Relay Chat Server
@@ -8,7 +6,8 @@
 
 `ft_irc` is a 42 group project where we build our own IRC server in **C++98**.
 
-The goal is not to create an IRC client, but to create a server that real IRC clients can connect to.  
+The goal is not to create an IRC client, but to create a server that real IRC clients can connect to.
+
 The server must handle multiple clients at the same time using non-blocking sockets and `poll()` or an equivalent system call.
 
 The executable must run like this:
@@ -43,38 +42,50 @@ Example:
 * [x] Makefile uses `-Wall -Wextra -Werror -std=c++98`
 * [x] Makefile has required rules: `all`, `clean`, `fclean`, `re`
 * [x] Executable name fixed to `ircserv`
-* [x] Basic `Server::run()` function added
+* [x] Basic `Server::run()` created
 * [x] Server currently compiles and runs
-* [x] Basic socket creation started in `Server.cpp`
+* [x] Server socket created with `socket()`
 * [x] `setsockopt()` added with `SO_REUSEADDR`
 * [x] Server socket set to non-blocking mode with `fcntl()`
+* [x] Server socket bound to the selected port with `bind()`
+* [x] Server starts listening with `listen()`
+* [x] Server socket added to the `poll()` file descriptor list
+* [x] Main `poll()` loop added in `Server::run()`
+* [x] New client connections detected through `poll()`
+* [x] `acceptClient()` added
+* [x] Accepted client sockets are set to non-blocking mode
+* [x] Accepted clients are added to the `poll()` list
+* [x] Basic `handleData()` added
+* [x] Data is received with `recv()` after `poll()` reports the fd as ready
+* [x] Basic `removeClient()` added
+* [x] Disconnected clients are closed and removed from the `poll()` list
+* [x] Basic manual test done with `nc`
 
 ### In Progress
 
-* [ ] Complete `Server` constructor
-* [ ] Add `bind()`
-* [ ] Add `listen()`
-* [ ] Add server socket to `poll()` list
-* [ ] Replace temporary `Server::run()` with real server loop
-* [ ] Add `acceptClient()`
-* [ ] Add `handleClient()`
-* [ ] Add proper client disconnection handling
+* [ ] Store connected clients in the `_clients` map
+* [ ] Create real `Client` objects when clients connect
+* [ ] Add `Client.cpp`
+* [ ] Add client buffer handling
+* [ ] Append received data to each client buffer
+* [ ] Extract full IRC commands ending in `\r\n`
+* [ ] Add command dispatcher
 
 ## Mandatory Requirements
 
 According to the subject, the server must:
 
-* [ ] Be written in C++98
-* [ ] Compile with `-Wall -Wextra -Werror`
-* [ ] Run as `./ircserv <port> <password>`
+* [x] Be written in C++98
+* [x] Compile with `-Wall -Wextra -Werror`
+* [x] Run as `./ircserv <port> <password>`
+* [x] Use TCP/IP sockets
+* [x] Use non-blocking file descriptors
+* [x] Use `poll()` or equivalent for I/O handling
+* [x] Avoid `fork()`
 * [ ] Accept multiple clients at the same time
-* [ ] Use non-blocking file descriptors
-* [ ] Use only one `poll()` or equivalent loop for I/O handling
-* [ ] Never use `fork()`
-* [ ] Communicate through TCP/IP
 * [ ] Work with a real IRC client
 * [ ] Correctly handle partial messages
-* [ ] Avoid crashing or quitting unexpectedly
+* [ ] Avoid crashing or quitting unexpectedly in all cases
 
 ## Mandatory IRC Features
 
@@ -114,13 +125,15 @@ Required channel modes:
 The `Server` class is responsible for:
 
 * Opening the server socket
+* Setting the server socket to non-blocking mode
 * Binding the socket to the chosen port
-* Listening for connections
+* Listening for incoming connections
 * Running the main `poll()` loop
 * Accepting new clients
+* Setting client sockets to non-blocking mode
 * Receiving data from clients
-* Sending responses
-* Dispatching commands
+* Removing disconnected clients
+* Later: dispatching commands to the correct command handler
 
 ### Client
 
@@ -135,6 +148,7 @@ The `Client` class should store:
 * Registration status
 
 The input buffer is important because IRC commands can arrive in pieces.
+
 The server must wait until a full command ending in `\r\n` is received before processing it.
 
 ### Channel
@@ -160,44 +174,59 @@ The `Channel` class should store:
 * [x] Create socket
 * [x] Set socket options
 * [x] Set socket to non-blocking
-* [ ] Bind socket
-* [ ] Listen on socket
-* [ ] Add socket to poll list
-* [ ] Create main poll loop
-* [ ] Accept new clients
+* [x] Bind socket
+* [x] Listen on socket
+* [x] Add server socket to poll list
+* [x] Create main poll loop
+* [x] Accept new clients
+* [x] Set accepted clients to non-blocking mode
+* [x] Add accepted clients to poll list
+* [x] Receive raw data from clients
+* [x] Remove disconnected clients from poll list
 
 ### Phase 2 — Client Handling
 
-* [ ] Store connected clients
-* [ ] Receive data using `recv()`
+* [ ] Store connected clients as `Client` objects
+* [ ] Add `Client.cpp`
+* [ ] Add constructors/destructor for `Client`
 * [ ] Append received data to client buffer
 * [ ] Extract full IRC commands from buffer
+* [ ] Handle partial messages correctly
 * [ ] Handle client disconnects safely
 
-### Phase 3 — Registration
+### Phase 3 — Command Dispatcher
+
+* [ ] Parse received IRC command lines
+* [ ] Extract command name
+* [ ] Extract command parameters
+* [ ] Route commands to the correct handler
+
+### Phase 4 — Registration
 
 * [ ] Implement `PASS`
 * [ ] Implement `NICK`
 * [ ] Implement `USER`
 * [ ] Mark client as registered only after required data is valid
 
-### Phase 4 — Basic IRC Commands
+### Phase 5 — Basic IRC Commands
 
 * [ ] Implement `JOIN`
 * [ ] Implement `PRIVMSG`
 * [ ] Send messages to channels
 * [ ] Send messages to individual users
 
-### Phase 5 — Channel Operators
+### Phase 6 — Channel Operators
 
 * [ ] Implement `KICK`
 * [ ] Implement `INVITE`
 * [ ] Implement `TOPIC`
 * [ ] Implement `MODE`
 
-### Phase 6 — Testing
+### Phase 7 — Testing
 
-* [ ] Test with `nc`
+* [x] Test server startup
+* [x] Test connection with `nc`
+* [x] Test raw message reception with `nc`
 * [ ] Test partial messages
 * [ ] Test multiple clients
 * [ ] Test wrong password
@@ -217,9 +246,30 @@ nc -C 127.0.0.1 6667
 Then send:
 
 ```irc
+hello
+```
+
+Expected current behavior:
+
+```text
+Client connected with fd <number>
+Data received from fd <number>: hello
+```
+
+Later expected behavior after client buffer handling:
+
+```irc
 PASS pass
 NICK roger
 USER roger 0 * :Roger
+```
+
+Expected future server output:
+
+```text
+Full IRC command from fd <number>: PASS pass
+Full IRC command from fd <number>: NICK roger
+Full IRC command from fd <number>: USER roger 0 * :Roger
 ```
 
 ## Compilation
@@ -262,6 +312,15 @@ Example:
 ./ircserv 6667 pass
 ```
 
+## Current Git Checkpoint
+
+Recommended commit message for the current stage:
+
+```bash
+git add .
+git commit -m "Set up non-blocking server socket with poll and client accept"
+```
+
 ## Resources
 
 Useful references:
@@ -270,12 +329,27 @@ Useful references:
 * Modern IRC documentation
 * Linux manual pages for:
 
-    * `socket`
-    * `setsockopt`
-    * `bind`
-    * `listen`
-    * `accept`
-    * `fcntl`
-    * `poll`
-    * `recv`
-    * `send`
+  * `socket`
+  * `setsockopt`
+  * `bind`
+  * `listen`
+  * `accept`
+  * `fcntl`
+  * `poll`
+  * `recv`
+  * `send`
+  * `close`
+
+## AI Usage
+
+AI was used as a learning and planning assistant for:
+
+* Understanding the ft_irc subject
+* Breaking down the mandatory requirements
+* Planning the project structure
+* Explaining socket setup, non-blocking I/O, and `poll()`
+* Reviewing compilation and runtime behavior
+* Creating a step-by-step development checklist
+* Drafting and updating this README
+
+All generated code and explanations must be reviewed, tested, and understood by the team before being used.
