@@ -339,17 +339,3 @@ Useful references:
   * `recv`
   * `send`
   * `close`
-
-## AI Usage
-
-AI was used as a learning and planning assistant for:
-
-* Understanding the ft_irc subject
-* Breaking down the mandatory requirements
-* Planning the project structure
-* Explaining socket setup, non-blocking I/O, and `poll()`
-* Reviewing compilation and runtime behavior
-* Creating a step-by-step development checklist
-* Drafting and updating this README
-
-All generated code and explanations must be reviewed, tested, and understood by the team before being used.
