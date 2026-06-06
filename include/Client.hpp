@@ -14,8 +14,23 @@ class Client
         bool            _passOk; // does he sent PASS ?
         bool            _registered; // does he did PASS+NICK+USER ?
 
+		void setNickname(const std::string& nickname);
+		void setUsername(const std::string& username);
+		void setRealname(const std::string& realname);
+		void setPassOk(bool value);
+		void setRegistered(bool value);
+
+		bool isPassOk() const;
+		std::string getUsername() const;
+		std::string getRealname() const;
+
     public:
-        // getter / setter
+		Client();
+		Client(int fd);
+		Client(const Client& other);
+		Client& operator=(const Client& other);
+		~Client();
+
         int getFd() const;
         std::string getNickname() const;
         bool isRegistered() const;
@@ -27,7 +42,3 @@ class Client
 };
 
 #endif
-
-/* _buffer is very important because if recv() gave incomplete message
-    buffer get data until we hit /r/n complet
-*/

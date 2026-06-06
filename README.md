@@ -29,7 +29,6 @@ Example:
 * [x] Basic project structure created
 * [x] `include/` folder created
 * [x] `src/` folder created
-* [x] `src/commands/` folder created
 * [x] Basic `Server.hpp` created
 * [x] Basic `Client.hpp` created
 * [x] Basic `Channel.hpp` created
@@ -42,8 +41,6 @@ Example:
 * [x] Makefile uses `-Wall -Wextra -Werror -std=c++98`
 * [x] Makefile has required rules: `all`, `clean`, `fclean`, `re`
 * [x] Executable name fixed to `ircserv`
-* [x] Basic `Server::run()` created
-* [x] Server currently compiles and runs
 * [x] Server socket created with `socket()`
 * [x] `setsockopt()` added with `SO_REUSEADDR`
 * [x] Server socket set to non-blocking mode with `fcntl()`
@@ -55,21 +52,29 @@ Example:
 * [x] `acceptClient()` added
 * [x] Accepted client sockets are set to non-blocking mode
 * [x] Accepted clients are added to the `poll()` list
-* [x] Basic `handleData()` added
+* [x] `Client.cpp` added
+* [x] `Client` objects are created when clients connect
+* [x] Connected clients are stored in the `_clients` map
 * [x] Data is received with `recv()` after `poll()` reports the fd as ready
+* [x] Received data is appended to each client's buffer
+* [x] Full IRC commands are extracted from the buffer using `\r\n`
 * [x] Basic `removeClient()` added
 * [x] Disconnected clients are closed and removed from the `poll()` list
-* [x] Basic manual test done with `nc`
+* [x] Disconnected clients are deleted from the `_clients` map
+* [x] Basic command dispatcher added
+* [x] Dispatcher recognizes mandatory command names using an enum
+* [x] Dispatcher currently detects `PASS`, `NICK`, `USER`, `JOIN`, `PRIVMSG`, `KICK`, `INVITE`, `TOPIC`, and `MODE`
+* [x] Temporary handler stubs added for `PASS`, `NICK`, and `USER`
+* [x] Basic manual tests done with `nc`
 
 ### In Progress
 
-* [ ] Store connected clients in the `_clients` map
-* [ ] Create real `Client` objects when clients connect
-* [ ] Add `Client.cpp`
-* [ ] Add client buffer handling
-* [ ] Append received data to each client buffer
-* [ ] Extract full IRC commands ending in `\r\n`
-* [ ] Add command dispatcher
+* [ ] Replace temporary `PASS`, `NICK`, and `USER` handler stubs with real logic
+* [ ] Add proper client registration state
+* [ ] Add basic server replies/errors
+* [ ] Improve port validation
+* [ ] Improve error handling for `poll()` / `recv()` edge cases
+* [ ] Add full cleanup/destructor logic if needed
 
 ## Mandatory Requirements
 
@@ -82,20 +87,20 @@ According to the subject, the server must:
 * [x] Use non-blocking file descriptors
 * [x] Use `poll()` or equivalent for I/O handling
 * [x] Avoid `fork()`
-* [ ] Accept multiple clients at the same time
-* [ ] Work with a real IRC client
-* [ ] Correctly handle partial messages
+* [x] Accept multiple clients through the same `poll()` loop
+* [ ] Work correctly with a real IRC client
+* [x] Correctly rebuild full commands from buffered data ending in `\r\n`
 * [ ] Avoid crashing or quitting unexpectedly in all cases
 
 ## Mandatory IRC Features
 
 The server must support:
 
-* [ ] PASS — connection password
-* [ ] NICK — set/change nickname
-* [ ] USER — set username/realname
-* [ ] JOIN — join a channel
-* [ ] PRIVMSG — send private or channel messages
+* [ ] `PASS` — connection password
+* [ ] `NICK` — set/change nickname
+* [ ] `USER` — set username/realname
+* [ ] `JOIN` — join a channel
+* [ ] `PRIVMSG` — send private or channel messages
 
 Channel behavior:
 
@@ -105,10 +110,10 @@ Channel behavior:
 
 Operator commands:
 
-* [ ] KICK — remove a user from a channel
-* [ ] INVITE — invite a user to a channel
-* [ ] TOPIC — view/change channel topic
-* [ ] MODE — change channel modes
+* [ ] `KICK` — remove a user from a channel
+* [ ] `INVITE` — invite a user to a channel
+* [ ] `TOPIC` — view/change channel topic
+* [ ] `MODE` — change channel modes
 
 Required channel modes:
 
@@ -132,12 +137,14 @@ The `Server` class is responsible for:
 * Accepting new clients
 * Setting client sockets to non-blocking mode
 * Receiving data from clients
+* Storing connected clients
 * Removing disconnected clients
-* Later: dispatching commands to the correct command handler
+* Rebuilding full IRC commands from client buffers
+* Dispatching commands to the correct command handler
 
 ### Client
 
-The `Client` class should store:
+The `Client` class stores:
 
 * Client file descriptor
 * Nickname
@@ -149,7 +156,7 @@ The `Client` class should store:
 
 The input buffer is important because IRC commands can arrive in pieces.
 
-The server must wait until a full command ending in `\r\n` is received before processing it.
+The server waits until a full command ending in `\r\n` is received before processing it.
 
 ### Channel
 
@@ -186,20 +193,23 @@ The `Channel` class should store:
 
 ### Phase 2 — Client Handling
 
-* [ ] Store connected clients as `Client` objects
-* [ ] Add `Client.cpp`
-* [ ] Add constructors/destructor for `Client`
-* [ ] Append received data to client buffer
-* [ ] Extract full IRC commands from buffer
-* [ ] Handle partial messages correctly
-* [ ] Handle client disconnects safely
+* [x] Store connected clients as `Client` objects
+* [x] Add `Client.cpp`
+* [x] Add constructors/destructor for `Client`
+* [x] Append received data to client buffer
+* [x] Extract full IRC commands from buffer
+* [x] Handle partial messages at buffer level
+* [x] Handle client disconnects safely at basic level
 
 ### Phase 3 — Command Dispatcher
 
-* [ ] Parse received IRC command lines
-* [ ] Extract command name
-* [ ] Extract command parameters
-* [ ] Route commands to the correct handler
+* [x] Parse received IRC command lines
+* [x] Extract command name
+* [x] Convert command name to an enum type
+* [x] Route recognized commands through a dispatcher
+* [x] Add temporary stubs for `PASS`, `NICK`, and `USER`
+* [ ] Extract command parameters cleanly
+* [ ] Replace stubs with real handlers
 
 ### Phase 4 — Registration
 
@@ -207,6 +217,7 @@ The `Channel` class should store:
 * [ ] Implement `NICK`
 * [ ] Implement `USER`
 * [ ] Mark client as registered only after required data is valid
+* [ ] Send welcome/error replies
 
 ### Phase 5 — Basic IRC Commands
 
@@ -227,6 +238,8 @@ The `Channel` class should store:
 * [x] Test server startup
 * [x] Test connection with `nc`
 * [x] Test raw message reception with `nc`
+* [x] Test full command extraction with `PASS`, `NICK`, and `USER`
+* [x] Test dispatcher with known and unknown commands
 * [ ] Test partial messages
 * [ ] Test multiple clients
 * [ ] Test wrong password
@@ -240,36 +253,43 @@ The `Channel` class should store:
 Example test:
 
 ```bash
+./ircserv 6667 pass
+```
+
+In another terminal:
+
+```bash
 nc -C 127.0.0.1 6667
 ```
 
 Then send:
 
 ```irc
-hello
+PASS pass
+NICK roger
+USER roger 0 * :Roger
+HELLO test
 ```
 
 Expected current behavior:
 
 ```text
 Client connected with fd <number>
-Data received from fd <number>: hello
-```
-
-Later expected behavior after client buffer handling:
-
-```irc
-PASS pass
-NICK roger
-USER roger 0 * :Roger
-```
-
-Expected future server output:
-
-```text
 Full IRC command from fd <number>: PASS pass
+Command detected from fd <number>: PASS
+handlePass called with message: PASS pass
+
 Full IRC command from fd <number>: NICK roger
+Command detected from fd <number>: NICK
+handleNick called with message: NICK roger
+
 Full IRC command from fd <number>: USER roger 0 * :Roger
+Command detected from fd <number>: USER
+handleUser called with message: USER roger 0 * :Roger
+
+Full IRC command from fd <number>: HELLO test
+Command detected from fd <number>: HELLO
+Unknown command: HELLO
 ```
 
 ## Compilation
@@ -318,7 +338,7 @@ Recommended commit message for the current stage:
 
 ```bash
 git add .
-git commit -m "Set up non-blocking server socket with poll and client accept"
+git commit -m "Add client buffering and command dispatcher"
 ```
 
 ## Resources
@@ -329,13 +349,21 @@ Useful references:
 * Modern IRC documentation
 * Linux manual pages for:
 
-  * `socket`
-  * `setsockopt`
-  * `bind`
-  * `listen`
-  * `accept`
-  * `fcntl`
-  * `poll`
-  * `recv`
-  * `send`
-  * `close`
+    * `socket`
+    * `setsockopt`
+    * `bind`
+    * `listen`
+    * `accept`
+    * `fcntl`
+    * `poll`
+    * `recv`
+    * `send`
+    * `close`
+
+## AI Usage
+
+AI was used as a learning and planning assistant for:
+
+AI was used to help understand the subject, plan the work, explain errors, and review code ideas.
+
+All final code was reviewed, tested, and understood by the team.
