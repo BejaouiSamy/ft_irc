@@ -10,7 +10,8 @@ HEADER =	$(INC_DIR)/Channel.hpp \
 
 SRC =	src/main.cpp \
 		src/Server.cpp \
-		src/Client.cpp
+		src/Client.cpp \
+        src/Channel.cpp
 
 OBJ = $(SRC:.cpp=.o)
 

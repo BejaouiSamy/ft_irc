@@ -40,7 +40,21 @@ private:
 
   void			dispatchCommand(Client *client, const std::string& message);
   std::string		getCommandName(const std::string& message);
+  std::string		getCommandArgs(const std::string& message);
   e_CommandType	getCommandType(const std::string& command);
+
+  bool			isNicknameTaken(const std::string& nickname) const;
+  void			checkRegistration(Client *client);
+  void			sendReply(Client *client, const std::string& message);
+  void	        sendNumeric(Client *client, const std::string& code,
+        const std::string& message);
+  void	sendUnknownCommand(Client *client, const std::string& command);
+  void	sendNotRegistered(Client *client);
+
+  bool	commandNeedsRegistration(e_CommandType type) const;
+
+  bool	isValidChannelName(const std::string& name) const;
+  void	handleJoin(Client *client, const std::string& message);
 
   void			handlePass(Client *client, const std::string& message);
   void			handleNick(Client *client, const std::string& message);

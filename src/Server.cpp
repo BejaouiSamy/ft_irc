@@ -7,7 +7,6 @@
 #include <netinet/in.h>
 #include <cstring>
 #include <unistd.h>
-//#include <cctype>
 
 Server::Server(int port, std::string password)
 {
@@ -147,20 +146,173 @@ void Server::handleData(int fd)
 
 void Server::handlePass(Client *client, const std::string& message)
 {
-	(void)client;
-	std::cout << "handlePass called with message: " << message << std::endl;
+	std::string args;
+
+	args = getCommandArgs(message);
+	if (client->isRegistered())
+	{
+		std::cout << "PASS error: client already registered" << std::endl;
+		sendNumeric(client, "462", ":You may not reregister");
+		return ;
+	}
+	if (args.empty())
+	{
+		std::cout << "PASS error: missing password" << std::endl;
+		sendNumeric(client, "461", "PASS :Not enough parameters");
+		return ;
+	}
+	if (args != _password)
+	{
+		std::cout << "PASS error: wrong password" << std::endl;
+		sendNumeric(client, "464", ":Password incorrect");
+		return ;
+	}
+	client->setPassOk(true);
+	std::cout << "PASS accepted for fd " << client->getFd() << std::endl;
+	checkRegistration(client);
 }
 
 void Server::handleNick(Client *client, const std::string& message)
 {
-	(void)client;
-	std::cout << "handleNick called with message: " << message << std::endl;
+	std::string nickname;
+
+	nickname = getCommandArgs(message);
+	if (nickname.empty())
+	{
+		std::cout << "NICK error: missing nickname" << std::endl;
+		sendNumeric(client, "431", ":No nickname given");
+		return ;
+	}
+	if (isNicknameTaken(nickname))
+	{
+		std::cout << "NICK error: nickname already in use" << std::endl;
+		sendNumeric(client, "433", nickname + " :Nickname is already in use");
+		return ;
+	}
+	client->setNickname(nickname);
+	std::cout << "Nickname set for fd " << client->getFd()
+		<< ": " << nickname << std::endl;
+	checkRegistration(client);
 }
 
 void Server::handleUser(Client *client, const std::string& message)
 {
-	(void)client;
-	std::cout << "handleUser called with message: " << message << std::endl;
+	std::string	args;
+	std::string	username;
+	std::string	realname;
+	size_t		space_pos;
+	size_t		colon_pos;
+
+    if (client->isRegistered())
+	{
+		std::cout << "USER error: client already registered" << std::endl;
+		sendNumeric(client, "462", ":You may not reregister");
+		return ;
+	}
+	args = getCommandArgs(message);
+	if (args.empty())
+	{
+		std::cout << "USER error: missing parameters" << std::endl;
+		sendNumeric(client, "461", "USER :Not enough parameters");
+		return ;
+	}
+	space_pos = args.find(' ');
+	if (space_pos == std::string::npos)
+	{
+		std::cout << "USER error: not enough parameters" << std::endl;
+		sendNumeric(client, "461", "USER :Not enough parameters");
+		return ;
+	}
+	username = args.substr(0, space_pos);
+	colon_pos = args.find(':');
+	if (colon_pos != std::string::npos)
+		realname = args.substr(colon_pos + 1);
+	else
+		realname = username;
+	client->setUsername(username);
+	client->setRealname(realname);
+	std::cout << "Username set for fd " << client->getFd()
+		<< ": " << username << std::endl;
+	checkRegistration(client);
+}
+
+void Server::handleJoin(Client *client, const std::string& message)
+{
+	std::string	channel_name;
+	Channel		*channel;
+	bool		created;
+
+	channel_name = getCommandArgs(message);
+	if (channel_name.empty())
+	{
+		sendNumeric(client, "461", "JOIN :Not enough parameters");
+		return ;
+	}
+	if (isValidChannelName(channel_name) == false)
+	{
+		sendNumeric(client, "403", channel_name + " :No such channel");
+		return ;
+	}
+	created = false;
+	if (_channels.find(channel_name) == _channels.end())
+	{
+		_channels[channel_name] = new Channel(channel_name);
+		created = true;
+	}
+	channel = _channels[channel_name];
+	if (channel->isMember(client))
+		return ;
+	channel->addMember(client);
+	if (created)
+		channel->addOperator(client);
+	sendReply(client, ":" + client->getNickname() + "!"
+		+ client->getUsername() + "@localhost JOIN " + channel_name);
+	sendNumeric(client, "353", "= " + channel_name + " :"
+		+ channel->getNamesList());
+	sendNumeric(client, "366", channel_name + " :End of /NAMES list");
+	std::cout << client->getNickname() << " joined "
+		<< channel_name << std::endl;
+}
+
+void Server::sendReply(Client *client, const std::string& message)
+{
+	std::string response;
+
+	response = message + "\r\n";
+	send(client->getFd(), response.c_str(), response.length(), 0);
+}
+
+void Server::sendNumeric(Client *client, const std::string& code,
+	const std::string& message)
+{
+	std::string target;
+	std::string response;
+
+	if (client->getNickname().empty())
+		target = "*";
+	else
+		target = client->getNickname();
+	response = ":ircserv " + code + " " + target + " " + message;
+	sendReply(client, response);
+}
+
+void Server::sendUnknownCommand(Client *client, const std::string& command)
+{
+	sendNumeric(client, "421", command + " :Unknown command");
+}
+
+void Server::sendNotRegistered(Client *client)
+{
+	sendNumeric(client, "451", ":You have not registered");
+}
+
+bool Server::commandNeedsRegistration(e_CommandType type) const
+{
+	if (type == CMD_JOIN || type == CMD_PRIVMSG
+		|| type == CMD_KICK || type == CMD_INVITE
+		|| type == CMD_TOPIC || type == CMD_MODE)
+		return (true);
+	return (false);
 }
 
 void Server::removeClient(int fd)
@@ -190,17 +342,55 @@ std::string Server::getCommandName(const std::string& message)
 		return (message);
 	return (message.substr(0, pos));
 }
-/*
-std::string Server::toUpperCommand(const std::string& command)
-{
-	std::string upper;
 
-	upper = command;
-	for (size_t i = 0; i < upper.length(); ++i)
-		upper[i] = std::toupper(static_cast<unsigned char>(upper[i]));
-	return (upper);
+std::string Server::getCommandArgs(const std::string& message)
+{
+	size_t pos;
+
+	pos = message.find(' ');
+	if (pos == std::string::npos)
+		return ("");
+	return (message.substr(pos + 1));
 }
-*/
+
+bool Server::isNicknameTaken(const std::string& nickname) const
+{
+	std::map<int, Client*>::const_iterator it;
+
+	for (it = _clients.begin(); it != _clients.end(); ++it)
+	{
+		if (it->second->getNickname() == nickname)
+			return (true);
+	}
+	return (false);
+}
+
+bool Server::isValidChannelName(const std::string& name) const
+{
+	if (name.empty())
+		return (false);
+	if (name[0] != '#')
+		return (false);
+	return (true);
+}
+
+void Server::checkRegistration(Client *client)
+{
+	if (client->isRegistered())
+		return ;
+	if (client->isPassOk() == true
+		&& client->getNickname().empty() == false
+		&& client->getUsername().empty() == false)
+	{
+		client->setRegistered(true);
+		std::cout << "Client fd " << client->getFd()
+			<< " is now registered as " << client->getNickname()
+			<< std::endl;
+		sendNumeric(client, "001", ":Welcome to the ft_irc server, "
+			+ client->getNickname());
+	}
+}
+
 Server::e_CommandType Server::getCommandType(const std::string& command)
 {
 	if (command == "PASS")
@@ -234,6 +424,12 @@ void Server::dispatchCommand(Client *client, const std::string& message)
 
 	std::cout << "Command detected from fd " << client->getFd()
 		<< ": " << command << std::endl;
+	if (commandNeedsRegistration(type) && !client->isRegistered())
+	{
+		std::cout << "Command blocked: client is not registered" << std::endl;
+		sendNotRegistered(client);
+		return ;
+	}
 
 	switch (type)
 	{
@@ -247,25 +443,19 @@ void Server::dispatchCommand(Client *client, const std::string& message)
 			handleUser(client, message);
 			break ;
 		case CMD_JOIN:
-			std::cout << "JOIN command will be handled here" << std::endl;
-			break ;
+	        handleJoin(client, message);
+	        break ;
 		case CMD_PRIVMSG:
-			std::cout << "PRIVMSG command will be handled here" << std::endl;
-			break ;
 		case CMD_KICK:
-			std::cout << "KICK command will be handled here" << std::endl;
-			break ;
 		case CMD_INVITE:
-			std::cout << "INVITE command will be handled here" << std::endl;
-			break ;
 		case CMD_TOPIC:
-			std::cout << "TOPIC command will be handled here" << std::endl;
-			break ;
 		case CMD_MODE:
-			std::cout << "MODE command will be handled here" << std::endl;
+	        std::cout << "Command recognized but not implemented yet: "
+		        << command << std::endl;
 			break ;
 		default:
 			std::cout << "Unknown command: " << command << std::endl;
+            sendUnknownCommand(client, command);
 			break ;
 	}
 }

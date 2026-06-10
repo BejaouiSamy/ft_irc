@@ -78,3 +78,43 @@ std::string Client::extractMessage()
 	_buffer.erase(0, pos + 2);
 	return (message);
 }
+
+std::string Client::getUsername() const
+{
+	return (_username);
+}
+
+std::string Client::getRealname() const
+{
+	return (_realname);
+}
+
+bool Client::isPassOk() const
+{
+	return (_passOk);
+}
+
+void Client::setNickname(const std::string& nickname)
+{
+	_nickname = nickname;
+}
+
+void Client::setUsername(const std::string& username)
+{
+	_username = username;
+}
+
+void Client::setRealname(const std::string& realname)
+{
+	_realname = realname;
+}
+
+void Client::setPassOk(bool value)
+{
+	_passOk = value;
+}
+
+void Client::setRegistered(bool value)
+{
+	_registered = value;
+}
