@@ -265,8 +265,8 @@ void Server::handleJoin(Client *client, const std::string& message)
 	channel->addMember(client);
 	if (created)
 		channel->addOperator(client);
-	sendReply(client, ":" + client->getNickname() + "!"
-		+ client->getUsername() + "@localhost JOIN " + channel_name);
+	sendToChannel(channel, ":" + client->getNickname() + "!"
+	+ client->getUsername() + "@localhost JOIN " + channel_name, NULL);
 	sendNumeric(client, "353", "= " + channel_name + " :"
 		+ channel->getNamesList());
 	sendNumeric(client, "366", channel_name + " :End of /NAMES list");
@@ -313,6 +313,19 @@ bool Server::commandNeedsRegistration(e_CommandType type) const
 		|| type == CMD_TOPIC || type == CMD_MODE)
 		return (true);
 	return (false);
+}
+
+void Server::sendToChannel(Channel *channel, const std::string& message,
+	Client *except)
+{
+	const std::vector<Client*>&			members = channel->getMembers();
+	std::vector<Client*>::const_iterator	it;
+
+	for (it = members.begin(); it != members.end(); ++it)
+	{
+		if (*it != except)
+			sendReply(*it, message);
+	}
 }
 
 void Server::removeClient(int fd)

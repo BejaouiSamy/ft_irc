@@ -60,6 +60,11 @@ size_t Channel::getMemberCount() const
 	return (_members.size());
 }
 
+const std::vector<Client*>& Channel::getMembers() const
+{
+	return (_members);
+}
+
 void Channel::addMember(Client *client)
 {
 	if (isMember(client) == false)

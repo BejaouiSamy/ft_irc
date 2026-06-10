@@ -50,6 +50,8 @@ private:
         const std::string& message);
   void	sendUnknownCommand(Client *client, const std::string& command);
   void	sendNotRegistered(Client *client);
+  void	sendToChannel(Channel *channel, const std::string& message,
+        Client *except);
 
   bool	commandNeedsRegistration(e_CommandType type) const;
 

@@ -27,6 +27,7 @@ public:
   std::string	getName() const;
   std::string	getTopic() const;
   size_t		getMemberCount() const;
+  const std::vector<Client*>&	getMembers() const;
 
   void		addMember(Client *client);
   void		removeMember(Client *client);
