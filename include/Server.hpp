@@ -48,6 +48,7 @@ private:
   e_CommandType	getCommandType(const std::string& command);
 
   bool			isNicknameTaken(const std::string& nickname) const;
+	Client	*findClientByNickname(const std::string& nickname) const;
   void			checkRegistration(Client *client);
   void			sendReply(Client *client, const std::string& message);
   void	        sendNumeric(Client *client, const std::string& code,
@@ -60,11 +61,12 @@ private:
   bool	commandNeedsRegistration(e_CommandType type) const;
 
   bool	isValidChannelName(const std::string& name) const;
-  void	handleJoin(Client *client, const std::string& message);
 
-  void			handlePass(Client *client, const std::string& message);
-  void			handleNick(Client *client, const std::string& message);
-  void			handleUser(Client *client, const std::string& message);
+void	handlePass(Client *client, const std::string& message);
+void	handleNick(Client *client, const std::string& message);
+void	handleUser(Client *client, const std::string& message);
+void	handleJoin(Client *client, const std::string& message);
+void	handlePrivmsg(Client *client, const std::string& message);
 
   Server();
   Server(const Server& other);

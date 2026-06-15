@@ -319,6 +319,65 @@ void Server::handleWrite(int fd)
 	removeClient(fd);
 }
 
+void Server::handlePrivmsg(Client *client, const std::string& message)
+{
+	std::string	args;
+	std::string	target;
+	std::string	text;
+	size_t		space_pos;
+	Channel		*channel;
+	Client		*receiver;
+
+	args = getCommandArgs(message);
+	if (args.empty())
+	{
+		sendNumeric(client, "411", ":No recipient given (PRIVMSG)");
+		return ;
+	}
+	space_pos = args.find(' ');
+	if (space_pos == std::string::npos)
+	{
+		sendNumeric(client, "412", ":No text to send");
+		return ;
+	}
+	target = args.substr(0, space_pos);
+	text = args.substr(space_pos + 1);
+	if (text.empty())
+	{
+		sendNumeric(client, "412", ":No text to send");
+		return ;
+	}
+	if (text[0] == ':')
+		text.erase(0, 1);
+	if (target[0] == '#')
+	{
+		if (_channels.find(target) == _channels.end())
+		{
+			sendNumeric(client, "403", target + " :No such channel");
+			return ;
+		}
+		channel = _channels[target];
+		if (channel->isMember(client) == false)
+		{
+			sendNumeric(client, "442", target + " :You're not on that channel");
+			return ;
+		}
+		sendToChannel(channel, ":" + client->getNickname() + "!"
+			+ client->getUsername() + "@localhost PRIVMSG "
+			+ target + " :" + text, client);
+		return ;
+	}
+	receiver = findClientByNickname(target);
+	if (receiver == NULL)
+	{
+		sendNumeric(client, "401", target + " :No such nick/channel");
+		return ;
+	}
+	sendReply(receiver, ":" + client->getNickname() + "!"
+		+ client->getUsername() + "@localhost PRIVMSG "
+		+ target + " :" + text);
+}
+
 void Server::sendReply(Client *client, const std::string& message)
 {
 	std::string response;
@@ -424,6 +483,18 @@ bool Server::isNicknameTaken(const std::string& nickname) const
 	return (false);
 }
 
+Client *Server::findClientByNickname(const std::string& nickname) const
+{
+	std::map<int, Client*>::const_iterator it;
+
+	for (it = _clients.begin(); it != _clients.end(); ++it)
+	{
+		if (it->second->getNickname() == nickname)
+			return (it->second);
+	}
+	return (NULL);
+}
+
 bool Server::isValidChannelName(const std::string& name) const
 {
 	if (name.empty())
@@ -505,6 +576,8 @@ void Server::dispatchCommand(Client *client, const std::string& message)
 	        handleJoin(client, message);
 	        break ;
 		case CMD_PRIVMSG:
+			handlePrivmsg(client, message);
+			break ;
 		case CMD_KICK:
 		case CMD_INVITE:
 		case CMD_TOPIC:
