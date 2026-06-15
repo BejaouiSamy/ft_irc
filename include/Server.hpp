@@ -1,7 +1,6 @@
 #ifndef SERVER_HPP
 # define SERVER_HPP
 
-# include <iostream>
 # include <string>
 # include <vector>
 # include <map>
@@ -13,70 +12,69 @@
 class Server
 {
 private:
-  enum e_CommandType
-  {
-    CMD_PASS,
-    CMD_NICK,
-    CMD_USER,
-    CMD_JOIN,
-    CMD_PRIVMSG,
-    CMD_KICK,
-    CMD_INVITE,
-    CMD_TOPIC,
-    CMD_MODE,
-    CMD_UNKNOWN
-  };
+	enum e_CommandType
+	{
+		CMD_PASS,
+		CMD_NICK,
+		CMD_USER,
+		CMD_JOIN,
+		CMD_PRIVMSG,
+		CMD_KICK,
+		CMD_INVITE,
+		CMD_TOPIC,
+		CMD_MODE,
+		CMD_UNKNOWN
+	};
 
-  int								_port;
-  int								_server_fd;
-  std::string						_password;
-  std::vector<struct pollfd>		_fds;
-  std::map<int, Client*>			_clients;
-  std::map<std::string, Channel*>	_channels;
+	int								_port;
+	int								_server_fd;
+	std::string						_password;
+	std::vector<struct pollfd>			_fds;
+	std::map<int, Client*>			_clients;
+	std::map<std::string, Channel*>	_channels;
 
-	void	acceptClient();
-	void	handleData(int fd);
-	void	handleWrite(int fd);
-	void	removeClient(int fd);
+	void			acceptClient();
+	void			handleData(int fd);
+	void			handleWrite(int fd);
+	void			removeClient(int fd);
 
-	void	enablePollOut(int fd);
-	void	disablePollOut(int fd);
+	void			enablePollOut(int fd);
+	void			disablePollOut(int fd);
 
-  void			dispatchCommand(Client *client, const std::string& message);
-  std::string		getCommandName(const std::string& message);
-  std::string		getCommandArgs(const std::string& message);
-  e_CommandType	getCommandType(const std::string& command);
+	void			dispatchCommand(Client *client, const std::string& message);
+	std::string		getCommandName(const std::string& message);
+	std::string		getCommandArgs(const std::string& message);
+	e_CommandType	getCommandType(const std::string& command);
+	bool			commandNeedsRegistration(e_CommandType type) const;
 
-  bool			isNicknameTaken(const std::string& nickname) const;
-	Client	*findClientByNickname(const std::string& nickname) const;
-  void			checkRegistration(Client *client);
-  void			sendReply(Client *client, const std::string& message);
-  void	        sendNumeric(Client *client, const std::string& code,
-        const std::string& message);
-  void	sendUnknownCommand(Client *client, const std::string& command);
-  void	sendNotRegistered(Client *client);
-  void	sendToChannel(Channel *channel, const std::string& message,
-        Client *except);
+	void			handlePass(Client *client, const std::string& message);
+	void			handleNick(Client *client, const std::string& message);
+	void			handleUser(Client *client, const std::string& message);
+	void			checkRegistration(Client *client);
+	bool			isNicknameTaken(const std::string& nickname) const;
+	Client			*findClientByNickname(const std::string& nickname) const;
 
-  bool	commandNeedsRegistration(e_CommandType type) const;
+	void			handleJoin(Client *client, const std::string& message);
+	void			handlePrivmsg(Client *client, const std::string& message);
+	bool			isValidChannelName(const std::string& name) const;
+	void			sendToChannel(Channel *channel, const std::string& message,
+					Client *except);
 
-  bool	isValidChannelName(const std::string& name) const;
+	void			sendReply(Client *client, const std::string& message);
+	void			sendNumeric(Client *client, const std::string& code,
+					const std::string& message);
+	void			sendUnknownCommand(Client *client, const std::string& command);
+	void			sendNotRegistered(Client *client);
 
-void	handlePass(Client *client, const std::string& message);
-void	handleNick(Client *client, const std::string& message);
-void	handleUser(Client *client, const std::string& message);
-void	handleJoin(Client *client, const std::string& message);
-void	handlePrivmsg(Client *client, const std::string& message);
-
-  Server();
-  Server(const Server& other);
-  Server& operator=(const Server& other);
+	Server();
+	Server(const Server& other);
+	Server& operator=(const Server& other);
 
 public:
-  Server(int port, std::string password);
-  ~Server();
+	Server(int port, std::string password);
+	~Server();
 
-  void	run();
+	void			run();
 };
 
 #endif

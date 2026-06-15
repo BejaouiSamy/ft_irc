@@ -8,13 +8,13 @@
 
 The goal is not to create an IRC client, but to create a server that real IRC clients can connect to.
 
-The server must handle multiple clients at the same time using non-blocking sockets and `poll()` or an equivalent system call.
+The server handles multiple clients at the same time using non-blocking sockets and one `poll()` loop.
 
-The executable must run like this:
+The executable runs like this:
 
 ```bash
 ./ircserv <port> <password>
-````
+```
 
 Example:
 
@@ -33,13 +33,12 @@ Example:
 * [x] Basic project structure created
 * [x] `include/` folder created
 * [x] `src/` folder created
-* [x] Basic `Server.hpp` created
-* [x] Basic `Client.hpp` created
-* [x] Basic `Channel.hpp` created
-* [x] Basic `main.cpp` created
+* [x] `Server`, `Client`, and `Channel` classes created
 * [x] Program checks for correct argument count
 * [x] Program creates a `Server` object with port and password
-* [x] Program calls `server.run()`
+* [x] Program uses `try/catch` in `main.cpp` for clean error handling
+* [x] Safer port parsing added
+* [x] Invalid ports are rejected before server startup
 * [x] Makefile created
 * [x] Makefile compiles with `c++`
 * [x] Makefile uses `-Wall -Wextra -Werror -std=c++98`
@@ -60,18 +59,42 @@ Example:
 * [x] Accepted client sockets are set to non-blocking mode
 * [x] Accepted clients are added to the `poll()` list
 * [x] Data is received with `recv()` after `poll()` reports the fd as ready
+* [x] Output replies are queued in each client output buffer
+* [x] `POLLOUT` is enabled only when a client has pending output
+* [x] `send()` is only called from `handleWrite()` after `poll()` reports the fd writable
+* [x] Partial send handling started by erasing only sent bytes from the output buffer
+* [x] `POLLHUP`, `POLLERR`, and `POLLNVAL` are handled at basic level
 * [x] Basic `removeClient()` added
 * [x] Disconnected clients are closed and removed from the `poll()` list
+* [x] Basic destructor cleanup added for clients, channels, and fds
+
+### Refactor
+
+`Server.cpp` was split into smaller files:
+
+```text
+src/Server.cpp
+src/ServerNetwork.cpp
+src/ServerCommands.cpp
+src/ServerRegistration.cpp
+src/ServerChannels.cpp
+src/ServerReplies.cpp
+```
+
+This keeps the project easier to explain and prepares the code for operator commands and modes.
 
 ### Client handling
 
 * [x] `Client.cpp` added
 * [x] `Client` constructors/destructor added
 * [x] `Client` objects are created when clients connect
-* [x] Connected clients are stored in the `_clients` map
-* [x] Received data is appended to each client's buffer
+* [x] Connected clients are stored in the `_clients` map by fd
+* [x] Input buffer added
+* [x] Output buffer added
+* [x] Received data is appended to each client's input buffer
 * [x] Full IRC commands are extracted from the buffer using `\r\n`
 * [x] Multiple commands can be processed from one received buffer
+* [x] Replies are stored in the client output buffer before sending
 * [x] Disconnected clients are deleted from the `_clients` map
 
 ### Command dispatcher
@@ -82,7 +105,6 @@ Example:
 * [x] Command enum added
 * [x] Dispatcher recognizes mandatory command names using an enum
 * [x] Dispatcher currently detects:
-
   * `PASS`
   * `NICK`
   * `USER`
@@ -109,11 +131,7 @@ Example:
 * [x] Client stores username
 * [x] Client stores real name
 * [x] Client stores registration status
-* [x] Client becomes registered only after:
-
-  * correct `PASS`
-  * valid `NICK`
-  * valid `USER`
+* [x] Client becomes registered only after correct `PASS`, valid `NICK`, and valid `USER`
 * [x] Wrong password detected
 * [x] Missing nickname detected
 * [x] Duplicate nickname detected
@@ -124,9 +142,11 @@ Example:
 ### Replies
 
 * [x] `sendReply()` added
+* [x] `sendReply()` now queues replies instead of calling `send()` directly
 * [x] `sendNumeric()` added
 * [x] `sendUnknownCommand()` added
 * [x] `sendNotRegistered()` added
+* [x] `sendToChannel()` helper added
 * [x] Numeric reply `001` sent after successful registration
 * [x] Numeric reply `421` sent for unknown commands
 * [x] Numeric reply `451` sent when restricted commands are used before registration
@@ -135,7 +155,11 @@ Example:
 * [x] Numeric reply `433` sent for nickname already in use
 * [x] Numeric reply `464` sent for wrong password
 * [x] Numeric reply `462` sent when trying to register again
-* [x] Numeric reply `403` sent for invalid channel name in `JOIN`
+* [x] Numeric reply `403` sent for invalid or missing channel target cases
+* [x] Numeric reply `401` sent when private message target nick does not exist
+* [x] Numeric reply `411` sent when `PRIVMSG` has no recipient
+* [x] Numeric reply `412` sent when `PRIVMSG` has no text
+* [x] Numeric reply `442` sent when sending to a channel the client has not joined
 
 ### Channel foundation
 
@@ -155,6 +179,7 @@ Example:
 * [x] `Channel` can add operators
 * [x] `Channel` can remove operators
 * [x] `Channel` can check if a client is an operator
+* [x] `Channel` can expose its members through `getMembers()`
 * [x] `Channel` can build a names list for `353` replies
 * [x] `Channel.cpp` compiles successfully
 
@@ -168,23 +193,45 @@ Example:
 * [x] `JOIN` adds the client to the channel
 * [x] First user in a new channel becomes channel operator
 * [x] `JOIN` sends the join reply
+* [x] `JOIN` broadcasts the join message to existing channel members
 * [x] `JOIN` sends names list reply `353`
 * [x] `JOIN` sends end of names reply `366`
 * [x] `JOIN` tested with one registered client
+* [x] `JOIN` tested with two clients
+* [x] Second client joining is visible to the first client
 * [x] `JOIN` error `461` tested
 * [x] `JOIN` error `403` tested
 
+### PRIVMSG
+
+* [x] Basic `PRIVMSG` handler implemented
+* [x] `PRIVMSG` to channel implemented
+* [x] Channel messages are forwarded to all other channel members
+* [x] Sender does not receive their own channel message
+* [x] `PRIVMSG` to user/nickname implemented
+* [x] Missing recipient error `411` tested
+* [x] Missing text error `412` tested
+* [x] Unknown channel error `403` tested
+* [x] Not on channel error `442` tested
+* [x] Unknown nick/channel error `401` tested
+
 ---
 
-## In Progress
+## In Progress / Next Priorities
 
-* [ ] Test `JOIN` with two clients
-* [ ] Broadcast `JOIN` message to existing channel members
-* [ ] Prepare helper to send messages to all channel members
-* [ ] Improve port validation
-* [ ] Improve error handling for `poll()` / `recv()` edge cases
-* [ ] Improve `send()` handling for partial sends
-* [ ] Add full cleanup/destructor logic if needed
+* [ ] Implement `TOPIC`
+* [ ] Implement `KICK`
+* [ ] Implement `INVITE`
+* [ ] Implement `MODE`
+* [ ] Activate channel modes: `+i`, `+t`, `+k`, `+o`, `+l`
+* [ ] Remove disconnected clients from all joined channels
+* [ ] Delete empty channels if needed
+* [ ] Improve `USER` parsing
+* [ ] Improve `NICK` validation
+* [ ] Test partial messages manually
+* [ ] Test multiple commands in one packet
+* [ ] Test with a real IRC client
+* [ ] Choose one reference IRC client for evaluation
 
 ---
 
@@ -202,7 +249,7 @@ According to the subject, the server must:
 * [x] Accept multiple clients through the same `poll()` loop
 * [ ] Work correctly with a real IRC client
 * [x] Correctly rebuild full commands from buffered data ending in `\r\n`
-* [ ] Avoid crashing or quitting unexpectedly in all cases
+* [ ] Avoid crashing or quitting unexpectedly in all tested cases
 
 ---
 
@@ -211,15 +258,15 @@ According to the subject, the server must:
 The server must support:
 
 * [x] `PASS` — connection password
-* [x] `NICK` — set/change nickname at basic registration level
+* [x] `NICK` — set nickname at basic registration level
 * [x] `USER` — set username/realname at basic registration level
 * [x] `JOIN` — join a channel at basic level
-* [ ] `PRIVMSG` — send private or channel messages
+* [x] `PRIVMSG` — send private or channel messages at basic level
 
 Channel behavior:
 
 * [x] Users can join channels at basic level
-* [ ] Messages sent to a channel are forwarded to all other users in that channel
+* [x] Messages sent to a channel are forwarded to all other users in that channel
 * [x] Channels have regular users and operators at basic level
 
 Operator commands:
@@ -239,28 +286,20 @@ Required channel modes:
 
 ---
 
-## Planned Architecture
+## Current Architecture
 
 ### Server
 
-The `Server` class is responsible for:
+The `Server` class is split across several files:
 
-* Opening the server socket
-* Setting the server socket to non-blocking mode
-* Binding the socket to the chosen port
-* Listening for incoming connections
-* Running the main `poll()` loop
-* Accepting new clients
-* Setting client sockets to non-blocking mode
-* Receiving data from clients
-* Storing connected clients
-* Removing disconnected clients
-* Rebuilding full IRC commands from client buffers
-* Dispatching commands to the correct command handler
-* Sending replies to clients
-* Sending numeric IRC replies
-* Managing created channels
-* Sending messages to channel members
+```text
+Server.cpp              constructor, destructor, run()
+ServerNetwork.cpp       accept, recv, queued send, disconnect, pollout helpers
+ServerCommands.cpp      command parsing and dispatcher
+ServerRegistration.cpp  PASS, NICK, USER, registration helpers
+ServerChannels.cpp      JOIN, PRIVMSG, channel helpers
+ServerReplies.cpp       reply helpers and numeric replies
+```
 
 ### Client
 
@@ -271,12 +310,11 @@ The `Client` class stores:
 * Username
 * Real name
 * Input buffer
+* Output buffer
 * Password status
 * Registration status
 
-The input buffer is important because IRC commands can arrive in pieces.
-
-The server waits until a full command ending in `\r\n` is received before processing it.
+The input buffer is used because IRC commands can arrive in pieces. The output buffer is used so replies are only sent after `poll()` reports the fd writable.
 
 ### Channel
 
@@ -287,211 +325,9 @@ The `Channel` class stores:
 * Password/key
 * Members
 * Operators
-* Invite-only mode
-* Topic restriction mode
-* User limit
-
-The current `Channel` class already contains placeholders for future channel modes, but not all of them are active yet.
-
-Current implemented channel functions:
-
-* Add member
-* Remove member
-* Check if a client is a member
-* Add operator
-* Remove operator
-* Check if a client is an operator
-* Build a names list
-
----
-
-## Why We Use `vector` for Channel Members
-
-In the `Server` class, connected clients are stored in a map:
-
-```cpp
-std::map<int, Client*> _clients;
-```
-
-This makes sense because the server receives a file descriptor from `poll()`, and the file descriptor is the key used to find the correct client quickly.
-
-For channels, we use vectors:
-
-```cpp
-std::vector<Client*> _members;
-std::vector<Client*> _operators;
-```
-
-This is because a channel is naturally a list of users.
-
-A channel needs to answer questions like:
-
-* Who is inside this channel?
-* Who is an operator?
-* Send this message to everyone in the channel.
-* Build the names list for this channel.
-
-For this project, a vector is simple, clear, and easy to explain.
-
-A map could also work, for example:
-
-```cpp
-std::map<int, Client*> _members;
-```
-
-That would make lookups by file descriptor faster. However, it is a little more technical and not necessary for the size of this project.
-
-Our rule is:
-
-```text
-Server:
-Use map because clients are found by fd.
-
-Channel:
-Use vector because members and operators are simple user lists.
-```
-
-This keeps the project easier to understand, easier to defend, and easier to maintain while still being correct for the expected scale of the 42 project.
-
----
-
-## Server Errors vs Client Replies
-
-For evaluation, the most important thing is that the client receives the correct IRC replies.
-
-Server-side messages like this:
-
-```text
-JOIN error: not enough parameters
-```
-
-are useful while debugging, but they are not required behavior for the IRC protocol.
-
-Client-side numeric replies are more important. For example:
-
-```irc
-:ircserv 461 roger JOIN :Not enough parameters
-:ircserv 403 roger test :No such channel
-:ircserv 451 * :You have not registered
-```
-
-Our approach:
-
-```text
-During development:
-Keep useful std::cout debug messages.
-
-For protocol behavior:
-Send correct numeric replies to the client.
-
-Before final evaluation:
-Reduce unnecessary debug output if it makes the server messy.
-```
-
-This keeps the project clean while still giving us enough information during testing.
-
----
-
-## Development Plan
-
-### Phase 1 — Server Foundation
-
-* [x] Create Makefile
-* [x] Create basic server object
-* [x] Create socket
-* [x] Set socket options
-* [x] Set socket to non-blocking
-* [x] Bind socket
-* [x] Listen on socket
-* [x] Add server socket to poll list
-* [x] Create main poll loop
-* [x] Accept new clients
-* [x] Set accepted clients to non-blocking mode
-* [x] Add accepted clients to poll list
-* [x] Receive raw data from clients
-* [x] Remove disconnected clients from poll list
-
-### Phase 2 — Client Handling
-
-* [x] Store connected clients as `Client` objects
-* [x] Add `Client.cpp`
-* [x] Add constructors/destructor for `Client`
-* [x] Append received data to client buffer
-* [x] Extract full IRC commands from buffer
-* [x] Handle partial messages at buffer level
-* [x] Handle client disconnects safely at basic level
-
-### Phase 3 — Command Dispatcher
-
-* [x] Parse received IRC command lines
-* [x] Extract command name
-* [x] Extract command arguments
-* [x] Convert command name to an enum type
-* [x] Route recognized commands through a dispatcher
-* [x] Detect unknown commands
-* [x] Send numeric `421` for unknown commands
-* [x] Block restricted commands before registration
-* [x] Send numeric `451` when restricted commands are used before registration
-
-### Phase 4 — Registration
-
-* [x] Implement `PASS`
-* [x] Implement `NICK`
-* [x] Implement `USER`
-* [x] Mark client as registered only after required data is valid
-* [x] Send welcome reply `001`
-* [x] Send error replies for registration problems
-
-### Phase 5 — Channel Foundation
-
-* [x] Create `Channel.cpp`
-* [x] Add channel constructors/destructor
-* [x] Store members
-* [x] Store operators
-* [x] Add member functions
-* [x] Add operator functions
-* [x] Build names list
-* [x] Test channel logic through `JOIN`
-
-### Phase 6 — Basic IRC Commands
-
-* [x] Implement basic `JOIN`
-* [ ] Test `JOIN` with two clients
-* [ ] Broadcast `JOIN` to existing channel members
-* [ ] Implement `PRIVMSG`
-* [ ] Send messages to channels
-* [ ] Send messages to individual users
-
-### Phase 7 — Channel Operators
-
-* [ ] Implement `KICK`
-* [ ] Implement `INVITE`
-* [ ] Implement `TOPIC`
-* [ ] Implement `MODE`
-
-### Phase 8 — Testing
-
-* [x] Test server startup
-* [x] Test connection with `nc`
-* [x] Test raw message reception with `nc`
-* [x] Test full command extraction with `PASS`, `NICK`, and `USER`
-* [x] Test dispatcher with known and unknown commands
-* [x] Test numeric `421` for unknown commands
-* [x] Test wrong password
-* [x] Test duplicate nicknames
-* [x] Test registration success
-* [x] Test restricted commands before registration
-* [x] Test numeric `451` for unregistered restricted commands
-* [x] Test basic `JOIN`
-* [x] Test `JOIN` error `461`
-* [x] Test `JOIN` error `403`
-* [ ] Test partial messages manually
-* [ ] Test multiple clients
-* [ ] Test joining channels with multiple clients
-* [ ] Test private messages
-* [ ] Test channel messages
-* [ ] Test operator commands
-* [ ] Test with real IRC client
+* Invite-only mode placeholder
+* Topic restriction mode placeholder
+* User limit placeholder
 
 ---
 
@@ -509,13 +345,7 @@ Connect with netcat:
 nc -C 127.0.0.1 6667
 ```
 
-`127.0.0.1` means the client connects to the server running on the same computer.
-
-`-C` makes `nc` send lines using proper IRC-style `\r\n` endings.
-
 ### Registration test
-
-Send:
 
 ```irc
 PASS pass
@@ -523,216 +353,81 @@ NICK roger
 USER roger 0 * :Roger
 ```
 
-Expected client output:
+Expected:
 
 ```irc
 :ircserv 001 roger :Welcome to the ft_irc server, roger
 ```
 
-Expected server output:
+### JOIN test with two clients
 
-```text
-PASS accepted for fd <number>
-Nickname set for fd <number>: roger
-Username set for fd <number>: roger
-Client fd <number> is now registered as roger
-```
-
-### Unknown command test
-
-Send before registration:
-
-```irc
-hello
-Nick roger
-```
-
-Expected client output:
-
-```irc
-:ircserv 421 * hello :Unknown command
-:ircserv 421 * Nick :Unknown command
-```
-
-After registration, the target changes from `*` to the nickname.
-
-Example:
-
-```irc
-:ircserv 421 roger hello :Unknown command
-```
-
-### Restricted command before registration test
-
-Send before registration:
-
-```irc
-JOIN #test
-PRIVMSG #test :hello
-MODE #test +i
-```
-
-Expected client output:
-
-```irc
-:ircserv 451 * :You have not registered
-:ircserv 451 * :You have not registered
-:ircserv 451 * :You have not registered
-```
-
-Expected server output:
-
-```text
-Command blocked: client is not registered
-```
-
-### Basic JOIN test
-
-After registration, send:
-
-```irc
-JOIN #test
-```
-
-Expected client output:
-
-```irc
-:roger!roger@localhost JOIN #test
-:ircserv 353 roger = #test :@roger
-:ircserv 366 roger #test :End of /NAMES list
-```
-
-Expected server output:
-
-```text
-roger joined #test
-```
-
-### JOIN missing parameter test
-
-Send:
-
-```irc
-JOIN
-```
-
-Expected client output:
-
-```irc
-:ircserv 461 roger JOIN :Not enough parameters
-```
-
-### JOIN invalid channel name test
-
-Send:
-
-```irc
-JOIN test
-```
-
-Expected client output:
-
-```irc
-:ircserv 403 roger test :No such channel
-```
-
----
-
-## Why `USER roger 0 * :Roger`?
-
-The IRC `USER` command has this general structure:
-
-```irc
-USER <username> <hostname> <servername> :<realname>
-```
-
-Example:
-
-```irc
-USER roger 0 * :Roger
-```
-
-Breakdown:
-
-```text
-USER      = command
-roger     = username
-0         = hostname placeholder
-*         = servername placeholder
-:Roger    = real name / full name
-```
-
-The colon `:` means that everything after it is treated as one final parameter.
-
-Example:
-
-```irc
-USER roger 0 * :Roger Pastor Gomez
-```
-
-The real name becomes:
-
-```text
-Roger Pastor Gomez
-```
-
-without splitting it into separate parameters.
-
----
-
-## Compilation
-
-Compile the project with:
-
-```bash
-make
-```
-
-Clean object files:
-
-```bash
-make clean
-```
-
-Remove object files and executable:
-
-```bash
-make fclean
-```
-
-Recompile from zero:
-
-```bash
-make re
-```
-
----
-
-## Execution
-
-Run the server with:
-
-```bash
-./ircserv <port> <password>
-```
-
-Example:
-
-```bash
-./ircserv 6667 pass
-```
-
-Then connect with:
-
-```bash
-nc -C 127.0.0.1 6667
-```
-
-The password is not part of the `nc` command. It is sent after connecting:
+Client 1:
 
 ```irc
 PASS pass
+NICK roger
+USER roger 0 * :Roger
+JOIN #test
 ```
+
+Client 2:
+
+```irc
+PASS pass
+NICK titi
+USER titi 0 * :Titi
+JOIN #test
+```
+
+Client 1 should receive:
+
+```irc
+:titi!titi@localhost JOIN #test
+```
+
+Client 2 should receive names list including:
+
+```irc
+:ircserv 353 titi = #test :@roger titi
+```
+
+### Channel PRIVMSG test
+
+From Roger:
+
+```irc
+PRIVMSG #test :hello channel
+```
+
+Titi should receive:
+
+```irc
+:roger!roger@localhost PRIVMSG #test :hello channel
+```
+
+### Private PRIVMSG test
+
+From Roger:
+
+```irc
+PRIVMSG titi :hello directly
+```
+
+Titi should receive:
+
+```irc
+:roger!roger@localhost PRIVMSG titi :hello directly
+```
+
+### Port validation tests
+
+```bash
+./ircserv hello pass
+./ircserv 0 pass
+./ircserv 99999 pass
+```
+
+These should all fail with a clear error message.
 
 ---
 
@@ -742,14 +437,14 @@ Recommended commit message for the current stage:
 
 ```bash
 git add .
-git commit -m "Implement basic JOIN command"
+git commit -m "Refactor server and implement queued replies with PRIVMSG"
 ```
 
 Alternative:
 
 ```bash
 git add .
-git commit -m "Add channel creation and JOIN replies"
+git commit -m "Add POLLOUT replies and basic PRIVMSG"
 ```
 
 ---
@@ -760,44 +455,32 @@ git commit -m "Add channel creation and JOIN replies"
 
 * [ ] Reduce debug `std::cout` messages before final evaluation
 * [ ] Keep functions short and focused
-* [ ] Split `Server.cpp` if it becomes too large
-* [ ] Move reply helpers to a separate file later if needed
-* [ ] Move command handlers to separate files later if needed
+* [x] Split `Server.cpp` into smaller files
+* [x] Move reply helpers to a separate file
+* [x] Move command/registration/channel handlers into separate files
 * [ ] Keep helper functions private when they are only used inside `Server`
 * [ ] Keep data members private
 * [ ] Use public getters/setters only when another class truly needs them
 
 ### Server cleanup
 
-* [ ] Add/verify proper `Server` destructor
-* [ ] Close all open fds safely
-* [ ] Delete all `Client` objects safely
-* [ ] Delete all `Channel` objects safely
+* [x] Add basic `Server` destructor
+* [x] Close open fds safely in destructor
+* [x] Delete `Client` objects safely in destructor
+* [x] Delete `Channel` objects safely in destructor
 * [ ] Prevent `Server` copying
-* [ ] Improve `poll()` handling:
-
-  * `POLLHUP`
-  * `POLLERR`
-  * `POLLNVAL`
-* [ ] Improve `recv()` error handling:
-
-  * `EAGAIN`
-  * `EWOULDBLOCK`
-  * `EINTR`
-* [ ] Improve `send()` handling:
-
-  * partial send
-  * failed send
-  * disconnected client during send
-* [ ] Later use output buffers and `POLLOUT` for stricter non-blocking send handling
+* [x] Improve basic `poll()` handling for `POLLHUP`, `POLLERR`, `POLLNVAL`
+* [ ] Improve `recv()` error handling for `EAGAIN`, `EWOULDBLOCK`, `EINTR`
+* [x] Improve `send()` handling with output buffer and `POLLOUT`
+* [x] Handle partial sends by keeping unsent output in the buffer
 
 ### Input validation
 
-* [ ] Replace `atoi()` with safer port parsing
-* [ ] Reject non-numeric ports
-* [ ] Reject negative ports
-* [ ] Reject port `0` unless intentionally allowed
-* [ ] Reject ports above `65535`
+* [x] Replace `atoi()` with safer port parsing
+* [x] Reject non-numeric ports
+* [x] Reject negative ports
+* [x] Reject port `0`
+* [x] Reject ports above `65535`
 * [ ] Decide if privileged ports under `1024` should be rejected or just allowed to fail
 
 ### IRC behavior
@@ -808,22 +491,18 @@ git commit -m "Add channel creation and JOIN replies"
 * [ ] Handle nickname change after registration
 * [ ] Make sure wrong `PASS` behavior matches expected IRC behavior
 * [ ] Verify numeric replies with the chosen real IRC client
-* [ ] Possibly add more welcome numerics:
-
-  * `002`
-  * `003`
-  * `004`
+* [ ] Possibly add more welcome numerics: `002`, `003`, `004`
 
 ### Channels
 
-* [ ] Broadcast `JOIN` to existing channel members
+* [x] Broadcast `JOIN` to existing channel members
 * [ ] Remove disconnected client from all channels
 * [ ] Delete empty channels if needed
 * [ ] Activate invite-only mode logic
 * [ ] Activate topic restriction logic
 * [ ] Activate password/key logic
 * [ ] Activate user limit logic
-* [ ] Decide if `broadcast()` should stay inside `Channel` or be handled by `Server`
+* [ ] Decide if unused `Channel::broadcast()` should be removed or kept as placeholder
 
 ---
 
@@ -833,21 +512,10 @@ Useful references:
 
 * RFC 1459 — Internet Relay Chat Protocol
 * Modern IRC documentation
-* Linux manual pages for:
-
-  * `socket`
-  * `setsockopt`
-  * `bind`
-  * `listen`
-  * `accept`
-  * `fcntl`
-  * `poll`
-  * `recv`
-  * `send`
-  * `close`
+* Linux manual pages for: `socket`, `setsockopt`, `bind`, `listen`, `accept`, `fcntl`, `poll`, `recv`, `send`, `close`
 
 ---
 
 ## AI Usage
 
-AI was used to help understand the subject, plan the work, explain errors, and review code ideas.
+AI was used to help understand the subject, and review code ideas.
