@@ -7,6 +7,7 @@
 #include <netinet/in.h>
 #include <cstring>
 #include <unistd.h>
+#include <cerrno>
 
 Server::Server(int port, std::string password)
 {
@@ -67,23 +68,35 @@ Server::~Server()
 
 void Server::run()
 {
-    std::cout << "IRC server listening on port " << _port << std::endl;
-    while (true)
-    {
-        int ret = poll(&_fds[0], _fds.size(), -1);
-        if (ret == -1)
-            throw std::runtime_error("poll() failed");
-        for (size_t i = 0; i < _fds.size(); ++i)
-        {
-            if (_fds[i].revents & POLLIN)
-            {
-                if (_fds[i].fd == _server_fd)
-                    acceptClient();
-                else
-                    handleData(_fds[i].fd);
-            }
-        }
-    }
+	std::cout << "IRC server listening on port " << _port << std::endl;
+	while (true)
+	{
+		int ret = poll(&_fds[0], _fds.size(), -1);
+		if (ret == -1)
+			throw std::runtime_error("poll() failed");
+		for (size_t i = 0; i < _fds.size(); ++i)
+		{
+			int fd = _fds[i].fd;
+			short revents = _fds[i].revents;
+
+			if (revents & (POLLHUP | POLLERR | POLLNVAL))
+			{
+				if (fd != _server_fd)
+					removeClient(fd);
+				continue ;
+			}
+			if (revents & POLLIN)
+			{
+				if (fd == _server_fd)
+					acceptClient();
+				else
+					handleData(fd);
+			}
+			if (fd != _server_fd && _clients.find(fd) != _clients.end()
+				&& (revents & POLLOUT))
+				handleWrite(fd);
+		}
+	}
 }
 
 void Server::acceptClient()
@@ -274,12 +287,45 @@ void Server::handleJoin(Client *client, const std::string& message)
 		<< channel_name << std::endl;
 }
 
+void Server::handleWrite(int fd)
+{
+	Client		*client;
+	ssize_t		bytes;
+
+	if (_clients.find(fd) == _clients.end())
+		return ;
+	client = _clients[fd];
+
+	if (client->getOutputBuffer().empty())
+	{
+		disablePollOut(fd);
+		return ;
+	}
+
+	bytes = send(fd, client->getOutputBuffer().c_str(),
+			client->getOutputBuffer().length(), 0);
+
+	if (bytes > 0)
+	{
+		client->eraseOutput(bytes);
+		if (client->hasOutput() == false)
+			disablePollOut(fd);
+		return ;
+	}
+	if (bytes == -1 && (errno == EAGAIN || errno == EWOULDBLOCK
+			|| errno == EINTR))
+		return ;
+	std::cout << "Client disconnected during send fd " << fd << std::endl;
+	removeClient(fd);
+}
+
 void Server::sendReply(Client *client, const std::string& message)
 {
 	std::string response;
 
 	response = message + "\r\n";
-	send(client->getFd(), response.c_str(), response.length(), 0);
+	client->appendOutput(response);
+	enablePollOut(client->getFd());
 }
 
 void Server::sendNumeric(Client *client, const std::string& code,
@@ -470,5 +516,29 @@ void Server::dispatchCommand(Client *client, const std::string& message)
 			std::cout << "Unknown command: " << command << std::endl;
             sendUnknownCommand(client, command);
 			break ;
+	}
+}
+
+void Server::enablePollOut(int fd)
+{
+	for (size_t i = 0; i < _fds.size(); ++i)
+	{
+		if (_fds[i].fd == fd)
+		{
+			_fds[i].events |= POLLOUT;
+			return ;
+		}
+	}
+}
+
+void Server::disablePollOut(int fd)
+{
+	for (size_t i = 0; i < _fds.size(); ++i)
+	{
+		if (_fds[i].fd == fd)
+		{
+			_fds[i].events &= ~POLLOUT;
+			return ;
+		}
 	}
 }

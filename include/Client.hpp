@@ -11,6 +11,7 @@ class Client
 		std::string	_username;
 		std::string	_realname;
 		std::string	_buffer;
+		std::string	_outBuffer;
 		bool		_passOk;
 		bool		_registered;
 
@@ -36,6 +37,10 @@ class Client
 
 		void		appendBuffer(const std::string& data);
 		std::string	extractMessage();
+		void			appendOutput(const std::string& data);
+		std::string&	getOutputBuffer();
+		bool			hasOutput() const;
+		void			eraseOutput(size_t len);
 };
 
 #endif

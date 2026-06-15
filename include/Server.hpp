@@ -34,9 +34,13 @@ private:
   std::map<int, Client*>			_clients;
   std::map<std::string, Channel*>	_channels;
 
-  void			acceptClient();
-  void			handleData(int fd);
-  void			removeClient(int fd);
+	void	acceptClient();
+	void	handleData(int fd);
+	void	handleWrite(int fd);
+	void	removeClient(int fd);
+
+	void	enablePollOut(int fd);
+	void	disablePollOut(int fd);
 
   void			dispatchCommand(Client *client, const std::string& message);
   std::string		getCommandName(const std::string& message);

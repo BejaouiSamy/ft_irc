@@ -7,6 +7,7 @@ Client::Client()
   _username = "";
   _realname = "";
   _buffer = "";
+	_outBuffer = "";
   _passOk = false;
   _registered = false;
 }
@@ -18,6 +19,7 @@ Client::Client(int fd)
   _username = "";
   _realname = "";
   _buffer = "";
+	_outBuffer = "";
   _passOk = false;
   _registered = false;
 }
@@ -36,6 +38,7 @@ Client& Client::operator=(const Client& other)
     _username = other._username;
     _realname = other._realname;
     _buffer = other._buffer;
+  	_outBuffer = other._outBuffer;
     _passOk = other._passOk;
     _registered = other._registered;
   }
@@ -117,4 +120,24 @@ void Client::setPassOk(bool value)
 void Client::setRegistered(bool value)
 {
 	_registered = value;
+}
+
+void Client::appendOutput(const std::string& data)
+{
+	_outBuffer += data;
+}
+
+std::string& Client::getOutputBuffer()
+{
+	return (_outBuffer);
+}
+
+bool Client::hasOutput() const
+{
+	return (_outBuffer.empty() == false);
+}
+
+void Client::eraseOutput(size_t len)
+{
+	_outBuffer.erase(0, len);
 }
