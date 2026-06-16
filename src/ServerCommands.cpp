@@ -86,9 +86,11 @@ void Server::dispatchCommand(Client *client, const std::string& message)
 		case CMD_PRIVMSG:
 			handlePrivmsg(client, message);
 			break ;
+		case CMD_TOPIC:
+			handleTopic(client, message);
+			break ;
 		case CMD_KICK:
 		case CMD_INVITE:
-		case CMD_TOPIC:
 		case CMD_MODE:
 			std::cout << "Command recognized but not implemented yet: "
 				<< command << std::endl;

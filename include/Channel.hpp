@@ -29,6 +29,9 @@ public:
   size_t		getMemberCount() const;
   const std::vector<Client*>&	getMembers() const;
 
+  void        setTopic(const std::string& topic);
+  bool        hasTopic() const;
+
   void		addMember(Client *client);
   void		removeMember(Client *client);
   bool		isMember(Client *client) const;

@@ -60,6 +60,16 @@ size_t Channel::getMemberCount() const
 	return (_members.size());
 }
 
+void Channel::setTopic(const std::string& topic)
+{
+	_topic = topic;
+}
+
+bool Channel::hasTopic() const
+{
+	return (_topic.empty() == false);
+}
+
 const std::vector<Client*>& Channel::getMembers() const
 {
 	return (_members);

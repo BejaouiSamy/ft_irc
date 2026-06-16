@@ -56,6 +56,7 @@ private:
 
 	void			handleJoin(Client *client, const std::string& message);
 	void			handlePrivmsg(Client *client, const std::string& message);
+    void	        handleTopic(Client *client, const std::string& message);
 	bool			isValidChannelName(const std::string& name) const;
 	void			sendToChannel(Channel *channel, const std::string& message,
 					Client *except);

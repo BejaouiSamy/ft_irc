@@ -121,3 +121,53 @@ void Server::sendToChannel(Channel *channel, const std::string& message,
 			sendReply(*it, message);
 	}
 }
+
+void Server::handleTopic(Client *client, const std::string& message)
+{
+	std::string	args;
+	std::string	channel_name;
+	std::string	topic;
+	size_t		space_pos;
+	size_t		colon_pos;
+	Channel		*channel;
+
+	args = getCommandArgs(message);
+	if (args.empty())
+	{
+		sendNumeric(client, "461", "TOPIC :Not enough parameters");
+		return ;
+	}
+	space_pos = args.find(' ');
+	if (space_pos == std::string::npos)
+		channel_name = args;
+	else
+		channel_name = args.substr(0, space_pos);
+	if (_channels.find(channel_name) == _channels.end())
+	{
+		sendNumeric(client, "403", channel_name + " :No such channel");
+		return ;
+	}
+	channel = _channels[channel_name];
+	if (channel->isMember(client) == false)
+	{
+		sendNumeric(client, "442", channel_name + " :You're not on that channel");
+		return ;
+	}
+	if (space_pos == std::string::npos)
+	{
+		if (channel->hasTopic())
+			sendNumeric(client, "332", channel_name + " :" + channel->getTopic());
+		else
+			sendNumeric(client, "331", channel_name + " :No topic is set");
+		return ;
+	}
+	colon_pos = args.find(':', space_pos);
+	if (colon_pos == std::string::npos)
+		topic = args.substr(space_pos + 1);
+	else
+		topic = args.substr(colon_pos + 1);
+	channel->setTopic(topic);
+	sendToChannel(channel, ":" + client->getNickname() + "!"
+		+ client->getUsername() + "@localhost TOPIC "
+		+ channel_name + " :" + topic, NULL);
+}
