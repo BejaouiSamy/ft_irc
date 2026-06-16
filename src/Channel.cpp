@@ -37,6 +37,7 @@ Channel& Channel::operator=(const Channel& other)
 		_inviteOnly = other._inviteOnly;
 		_topicRestricted = other._topicRestricted;
 		_userLimit = other._userLimit;
+        _invited = other._invited;
 	}
 	return (*this);
 }
@@ -94,6 +95,7 @@ void Channel::removeMember(Client *client)
 		}
 	}
 	removeOperator(client);
+	removeInvited(client);
 }
 
 bool Channel::isMember(Client *client) const
@@ -160,4 +162,34 @@ void Channel::broadcast(const std::string& message, Client *except)
 {
 	(void)message;
 	(void)except;
+}
+
+void Channel::addInvited(Client *client)
+{
+	if (isInvited(client) == false)
+		_invited.push_back(client);
+}
+
+void Channel::removeInvited(Client *client)
+{
+	for (std::vector<Client*>::iterator it = _invited.begin();
+		it != _invited.end(); ++it)
+	{
+		if (*it == client)
+		{
+			_invited.erase(it);
+			return ;
+		}
+	}
+}
+
+bool Channel::isInvited(Client *client) const
+{
+	for (std::vector<Client*>::const_iterator it = _invited.begin();
+		it != _invited.end(); ++it)
+	{
+		if (*it == client)
+			return (true);
+	}
+	return (false);
 }

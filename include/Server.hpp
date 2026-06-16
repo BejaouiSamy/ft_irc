@@ -29,7 +29,7 @@ private:
 	int								_port;
 	int								_server_fd;
 	std::string						_password;
-	std::vector<struct pollfd>			_fds;
+	std::vector<struct pollfd>		_fds;
 	std::map<int, Client*>			_clients;
 	std::map<std::string, Channel*>	_channels;
 
@@ -56,15 +56,28 @@ private:
 
 	void			handleJoin(Client *client, const std::string& message);
 	void			handlePrivmsg(Client *client, const std::string& message);
-    void	        handleTopic(Client *client, const std::string& message);
+	void			handleTopic(Client *client, const std::string& message);
+	void			handleKick(Client *client, const std::string& message);
+	void			handleInvite(Client *client, const std::string& message);
+
+	bool			parseKickArgs(const std::string& args,
+						std::string& channelName,
+						std::string& targetNick,
+						std::string& reason,
+						const std::string& defaultReason);
+	bool			parseInviteArgs(const std::string& args,
+						std::string& targetNick,
+						std::string& channelName);
+
 	bool			isValidChannelName(const std::string& name) const;
 	void			sendToChannel(Channel *channel, const std::string& message,
-					Client *except);
+						Client *except);
 
 	void			sendReply(Client *client, const std::string& message);
 	void			sendNumeric(Client *client, const std::string& code,
-					const std::string& message);
-	void			sendUnknownCommand(Client *client, const std::string& command);
+						const std::string& message);
+	void			sendUnknownCommand(Client *client,
+						const std::string& command);
 	void			sendNotRegistered(Client *client);
 
 	Server();

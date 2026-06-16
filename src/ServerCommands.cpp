@@ -90,7 +90,11 @@ void Server::dispatchCommand(Client *client, const std::string& message)
 			handleTopic(client, message);
 			break ;
 		case CMD_KICK:
+			handleKick(client, message);
+			break ;
 		case CMD_INVITE:
+			handleInvite(client, message);
+			break ;
 		case CMD_MODE:
 			std::cout << "Command recognized but not implemented yet: "
 				<< command << std::endl;

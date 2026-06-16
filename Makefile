@@ -4,19 +4,14 @@ CXX = c++
 CXXFLAGS = -Wall -Wextra -Werror -std=c++98
 
 INC_DIR = include
-HEADER = $(INC_DIR)/Channel.hpp \
-		$(INC_DIR)/Client.hpp \
-		$(INC_DIR)/Server.hpp
+HEADER =	$(INC_DIR)/Channel.hpp \
+			$(INC_DIR)/Client.hpp \
+			$(INC_DIR)/Server.hpp
 
-SRC = src/main.cpp \
+SRC =	src/main.cpp \
 		src/Server.cpp \
-		src/ServerNetwork.cpp \
-		src/ServerCommands.cpp \
-		src/ServerRegistration.cpp \
-		src/ServerChannels.cpp \
-		src/ServerReplies.cpp \
 		src/Client.cpp \
-		src/Channel.cpp
+        src/Channel.cpp
 
 OBJ = $(SRC:.cpp=.o)
 

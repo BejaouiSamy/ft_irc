@@ -171,3 +171,159 @@ void Server::handleTopic(Client *client, const std::string& message)
 		+ client->getUsername() + "@localhost TOPIC "
 		+ channel_name + " :" + topic, NULL);
 }
+
+bool Server::parseKickArgs(const std::string& args,
+	std::string& channelName, std::string& targetNick,
+	std::string& reason, const std::string& defaultReason)
+{
+	size_t	firstSpace;
+	size_t	secondSpace;
+	size_t	colonPos;
+
+	if (args.empty())
+		return (false);
+	firstSpace = args.find(' ');
+	if (firstSpace == std::string::npos)
+		return (false);
+	channelName = args.substr(0, firstSpace);
+	secondSpace = args.find(' ', firstSpace + 1);
+	if (secondSpace == std::string::npos)
+	{
+		targetNick = args.substr(firstSpace + 1);
+		reason = defaultReason;
+	}
+	else
+	{
+		targetNick = args.substr(firstSpace + 1,
+				secondSpace - firstSpace - 1);
+		colonPos = args.find(':', secondSpace);
+		if (colonPos == std::string::npos)
+			reason = args.substr(secondSpace + 1);
+		else
+			reason = args.substr(colonPos + 1);
+	}
+	if (targetNick.empty())
+		return (false);
+	return (true);
+}
+
+
+void Server::handleKick(Client *client, const std::string& message)
+{
+	std::string	args;
+	std::string	channelName;
+	std::string	targetNick;
+	std::string	reason;
+	Channel		*channel;
+	Client		*target;
+
+	args = getCommandArgs(message);
+	if (parseKickArgs(args, channelName, targetNick, reason,
+			client->getNickname()) == false)
+	{
+		sendNumeric(client, "461", "KICK :Not enough parameters");
+		return ;
+	}
+	if (_channels.find(channelName) == _channels.end())
+	{
+		sendNumeric(client, "403", channelName + " :No such channel");
+		return ;
+	}
+	channel = _channels[channelName];
+	if (channel->isMember(client) == false)
+	{
+		sendNumeric(client, "442", channelName
+			+ " :You're not on that channel");
+		return ;
+	}
+	if (channel->isOperator(client) == false)
+	{
+		sendNumeric(client, "482", channelName
+			+ " :You're not channel operator");
+		return ;
+	}
+	target = findClientByNickname(targetNick);
+	if (target == NULL || channel->isMember(target) == false)
+	{
+		sendNumeric(client, "441", targetNick + " " + channelName
+			+ " :They aren't on that channel");
+		return ;
+	}
+	sendToChannel(channel, ":" + client->getNickname() + "!"
+		+ client->getUsername() + "@localhost KICK "
+		+ channelName + " " + targetNick + " :" + reason, NULL);
+	channel->removeMember(target);
+}
+
+bool	Server::parseInviteArgs(const std::string& args,
+	std::string& targetNick, std::string& channelName)
+{
+	size_t	firstSpace;
+	size_t	secondSpace;
+
+	if (args.empty())
+		return (false);
+	firstSpace = args.find(' ');
+	if (firstSpace == std::string::npos)
+		return (false);
+	targetNick = args.substr(0, firstSpace);
+	secondSpace = args.find(' ', firstSpace + 1);
+	if (secondSpace == std::string::npos)
+		channelName = args.substr(firstSpace + 1);
+	else
+		channelName = args.substr(firstSpace + 1, secondSpace - firstSpace - 1);
+	if (targetNick.empty() || channelName.empty())
+		return (false);
+	return (true);
+}
+
+void Server::handleInvite(Client *client, const std::string& message)
+{
+	std::string	args;
+	std::string	targetNick;
+	std::string	channelName;
+	Channel		*channel;
+	Client		*target;
+
+	args = getCommandArgs(message);
+	if (parseInviteArgs(args, targetNick, channelName) == false)
+	{
+		sendNumeric(client, "461", "INVITE :Not enough parameters");
+		return ;
+	}
+	target = findClientByNickname(targetNick);
+	if (target == NULL)
+	{
+		sendNumeric(client, "401", targetNick + " :No such nick/channel");
+		return ;
+	}
+	if (_channels.find(channelName) == _channels.end())
+	{
+		sendNumeric(client, "403", channelName + " :No such channel");
+		return ;
+	}
+	channel = _channels[channelName];
+	if (channel->isMember(client) == false)
+	{
+		sendNumeric(client, "442", channelName
+			+ " :You're not on that channel");
+		return ;
+	}
+	if (channel->isOperator(client) == false)
+	{
+		sendNumeric(client, "482", channelName
+			+ " :You're not channel operator");
+		return ;
+	}
+	if (channel->isMember(target) == true)
+	{
+		sendNumeric(client, "443", targetNick + " " + channelName
+			+ " :is already on channel");
+		return ;
+	}
+	channel->addInvited(target);
+	sendNumeric(client, "341", targetNick + " " + channelName);
+	sendReply(target, ":" + client->getNickname() + "!"
+		+ client->getUsername() + "@localhost INVITE "
+		+ targetNick + " " + channelName);
+}

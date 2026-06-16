@@ -11,8 +11,9 @@ private:
   std::string				_name;
   std::string				_topic;
   std::string				_password;
-  std::vector<Client*>	_members;
-  std::vector<Client*>	_operators;
+  std::vector<Client*>		_members;
+  std::vector<Client*>		_operators;
+  std::vector<Client*>		_invited;
   bool					_inviteOnly;
   bool					_topicRestricted;
   int						_userLimit;
@@ -24,24 +25,29 @@ public:
   Channel& operator=(const Channel& other);
   ~Channel();
 
-  std::string	getName() const;
-  std::string	getTopic() const;
-  size_t		getMemberCount() const;
+  std::string					getName() const;
+  std::string					getTopic() const;
+  size_t						getMemberCount() const;
   const std::vector<Client*>&	getMembers() const;
 
-  void        setTopic(const std::string& topic);
-  bool        hasTopic() const;
+  void						setTopic(const std::string& topic);
+  bool						hasTopic() const;
 
-  void		addMember(Client *client);
-  void		removeMember(Client *client);
-  bool		isMember(Client *client) const;
+  void						addMember(Client *client);
+  void						removeMember(Client *client);
+  bool						isMember(Client *client) const;
 
-  void		addOperator(Client *client);
-  void		removeOperator(Client *client);
-  bool		isOperator(Client *client) const;
+  void						addOperator(Client *client);
+  void						removeOperator(Client *client);
+  bool						isOperator(Client *client) const;
 
-  std::string	getNamesList() const;
-  void		broadcast(const std::string& message, Client *except = NULL);
+  void						addInvited(Client *client);
+  void						removeInvited(Client *client);
+  bool						isInvited(Client *client) const;
+
+  std::string					getNamesList() const;
+  void						broadcast(const std::string& message,
+                                                                  Client *except = NULL);
 };
 
 #endif

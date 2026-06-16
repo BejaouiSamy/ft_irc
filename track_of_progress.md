@@ -1,14 +1,23 @@
+---
+
+# 1. `track_of_progress.md` completo
+
+Copia y pega esto entero en `track_of_progress.md`:
+
+````md
 # ft_irc — Master Progress / Cleanup / TODO List
 
 ## Current estimated mandatory progress
 
 ```text
-Estimated mandatory completion: 55% to 60%
-```
+Estimated mandatory completion: 62% to 65%
+````
 
-The networking base, registration, channels, JOIN, channel messages, private messages, output buffering, safer port parsing, and server refactor are done.
+The networking base, registration, channels, JOIN, channel messages, private messages, output buffering, safer port parsing, server refactor, TOPIC, and KICK are done.
 
-The remaining mandatory work is mainly operator commands, channel modes, disconnect cleanup, and real IRC client testing.
+INVITE has been started/prepared, but final testing is still pending.
+
+The remaining mandatory work is mainly finishing/testing INVITE, implementing MODE and channel modes, disconnect cleanup, and real IRC client testing.
 
 ---
 
@@ -155,6 +164,12 @@ The remaining mandatory work is mainly operator commands, channel modes, disconn
 [x] No recipient 411 sent
 [x] No text to send 412 sent
 [x] Not on channel 442 sent
+[x] User not in channel 441 sent for KICK target errors
+[x] User already on channel 443 prepared for INVITE
+[x] Channel operator privilege error 482 sent
+[x] Topic numeric 331 sent when no topic is set
+[x] Topic numeric 332 sent when topic exists
+[x] Invite confirmation numeric 341 prepared
 ```
 
 ### Channel foundation
@@ -168,6 +183,7 @@ The remaining mandatory work is mainly operator commands, channel modes, disconn
 [x] Channel stores password/key placeholder for mode +k
 [x] Channel stores members using std::vector<Client*>
 [x] Channel stores operators using std::vector<Client*>
+[x] Channel stores invited users using std::vector<Client*>
 [x] Channel stores invite-only placeholder for mode +i
 [x] Channel stores topic restriction placeholder for mode +t
 [x] Channel stores user limit placeholder for mode +l
@@ -178,6 +194,11 @@ The remaining mandatory work is mainly operator commands, channel modes, disconn
 [x] Channel can add operators
 [x] Channel can remove operators
 [x] Channel can check if a client is an operator
+[x] Channel can add invited users
+[x] Channel can remove invited users
+[x] Channel can check if a client is invited
+[x] Channel can set topic
+[x] Channel can check if topic exists
 [x] Channel can build names list
 [x] Channel.cpp added to Makefile
 [x] Project compiles with Channel.cpp
@@ -235,15 +256,89 @@ The remaining mandatory work is mainly operator commands, channel modes, disconn
 # Operator commands
 
 ```text
-[ ] Implement TOPIC
-[ ] Implement KICK
-[ ] Implement INVITE
+[x] Implement TOPIC
+[x] Implement KICK
+[~] Implement INVITE
 [ ] Implement MODE
 ```
 
-## MODE requirements
+## TOPIC
 
 ```text
+[x] handleTopic() added
+[x] CMD_TOPIC connected to handleTopic()
+[x] TOPIC can view topic when no topic is set
+[x] TOPIC can set topic
+[x] TOPIC can view existing topic
+[x] TOPIC broadcasts topic change to channel members
+[x] TOPIC checks missing parameters
+[x] TOPIC checks channel exists
+[x] TOPIC checks user is in channel
+[x] TOPIC numeric 331 implemented
+[x] TOPIC numeric 332 implemented
+[x] TOPIC numeric 403 implemented
+[x] TOPIC numeric 442 implemented
+[x] TOPIC tested
+```
+
+## KICK
+
+```text
+[x] handleKick() added
+[x] CMD_KICK connected to handleKick()
+[x] parseKickArgs() helper added
+[x] KICK parses channel name
+[x] KICK parses target nickname
+[x] KICK parses optional reason
+[x] KICK uses nickname as default reason if reason is missing
+[x] Only channel operators can KICK
+[x] KICK broadcasts to channel members
+[x] Kicked user receives KICK message
+[x] Kicked user is removed from channel
+[x] KICK checks missing parameters
+[x] KICK checks channel exists
+[x] KICK checks kicker is in channel
+[x] KICK checks kicker is operator
+[x] KICK checks target exists / is in channel
+[x] KICK numeric 461 implemented
+[x] KICK numeric 403 implemented
+[x] KICK numeric 442 implemented
+[x] KICK numeric 482 implemented
+[x] KICK numeric 441 implemented
+[x] KICK tested
+```
+
+## INVITE
+
+```text
+[x] Add invited users list to Channel
+[x] Add addInvited()
+[x] Add removeInvited()
+[x] Add isInvited()
+[x] Add parseInviteArgs()
+[x] parseInviteArgs() extracts target nickname
+[x] parseInviteArgs() extracts channel name
+[x] parseInviteArgs() ignores extra text after channel name
+[x] Add handleInvite()
+[x] CMD_INVITE connected to handleInvite()
+[x] INVITE stores invited user in Channel
+[x] INVITE sends numeric 341 to inviter
+[x] INVITE sends INVITE message to invited user
+[ ] Test INVITE success
+[ ] Test INVITE missing parameters
+[ ] Test INVITE no such nick
+[ ] Test INVITE no such channel
+[ ] Test INVITE inviter not in channel
+[ ] Test INVITE inviter not operator
+[ ] Test INVITE target already in channel
+```
+
+---
+
+# MODE requirements
+
+```text
+[ ] Implement MODE
 [ ] +i / -i invite-only
 [ ] +t / -t topic restricted to operators
 [ ] +k / -k channel key/password
@@ -278,12 +373,12 @@ The remaining mandatory work is mainly operator commands, channel modes, disconn
 [x] Test PRIVMSG channel
 [x] Test port validation
 [x] Test compile after refactor
+[x] Test TOPIC
+[x] Test KICK
+[ ] Test INVITE
 [ ] Test partial messages manually
 [ ] Test multiple commands in one packet
 [ ] Test USER with missing parameters
-[ ] Test KICK
-[ ] Test INVITE
-[ ] Test TOPIC
 [ ] Test MODE
 [ ] Test disconnect while inside channel
 [ ] Test with real IRC client
@@ -305,6 +400,8 @@ The remaining mandatory work is mainly operator commands, channel modes, disconn
 [x] Move registration handlers to ServerRegistration.cpp
 [x] Move channel handlers to ServerChannels.cpp
 [x] Move network logic to ServerNetwork.cpp
+[x] Keep KICK function shorter with parseKickArgs()
+[x] Keep INVITE function shorter with parseInviteArgs()
 [ ] Keep functions short and focused
 [ ] Keep helper functions private when they are only used inside Server
 [ ] Keep data members private
@@ -379,7 +476,8 @@ The remaining mandatory work is mainly operator commands, channel modes, disconn
 [ ] Activate topic restriction logic
 [ ] Activate password/key logic
 [ ] Activate user limit logic
-[ ] Add invited clients list for INVITE / +i
+[x] Add invited clients list for INVITE / +i
+[ ] Connect invited clients list to JOIN when +i is active
 ```
 
 ---
@@ -387,16 +485,18 @@ The remaining mandatory work is mainly operator commands, channel modes, disconn
 # Next recommended implementation order
 
 ```text
-1. TOPIC
-2. KICK
-3. INVITE
-4. MODE +o / -o
-5. MODE +t / -t
-6. MODE +i / -i
-7. MODE +k / -k
+1. Finish and test INVITE
+2. MODE +i / -i
+3. Connect JOIN to invite-only mode
+4. MODE +t / -t
+5. Connect TOPIC restriction to +t
+6. MODE +k / -k
+7. Connect JOIN to channel key/password
 8. MODE +l / -l
-9. Disconnect cleanup from channels
-10. Real IRC client testing
+9. Connect JOIN to user limit
+10. MODE +o / -o
+11. Disconnect cleanup from channels
+12. Real IRC client testing
 ```
 
 ---
@@ -405,5 +505,5 @@ The remaining mandatory work is mainly operator commands, channel modes, disconn
 
 ```bash
 git add .
-git commit -m "Refactor server and implement queued replies with PRIVMSG"
+git commit -m "Implement TOPIC KICK and start INVITE"
 ```
