@@ -550,10 +550,3 @@ The remaining mandatory work is mainly the rest of MODE, channel mode behavior, 
 git add .
 git commit -m "Implement invite-only mode and connect it to JOIN"
 ```
-
-Alternative:
-
-```bash
-git add .
-git commit -m "Add MODE invite-only behavior"
-```
