@@ -193,3 +193,13 @@ bool Channel::isInvited(Client *client) const
 	}
 	return (false);
 }
+
+void	Channel::setInviteOnly(bool value)
+{
+	_inviteOnly = value;
+}
+
+bool	Channel::isInviteOnly() const
+{
+	return (_inviteOnly);
+}

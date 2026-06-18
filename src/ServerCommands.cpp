@@ -96,8 +96,7 @@ void Server::dispatchCommand(Client *client, const std::string& message)
 			handleInvite(client, message);
 			break ;
 		case CMD_MODE:
-			std::cout << "Command recognized but not implemented yet: "
-				<< command << std::endl;
+			handleMode(client, message);
 			break ;
 		default:
 			std::cout << "Unknown command: " << command << std::endl;

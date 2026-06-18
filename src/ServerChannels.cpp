@@ -29,7 +29,13 @@ void Server::handleJoin(Client *client, const std::string& message)
 	channel = _channels[channel_name];
 	if (channel->isMember(client))
 		return ;
+	if (channel->isInviteOnly() && channel->isInvited(client) == false)
+	{
+		sendNumeric(client, "473", channel_name + " :Cannot join channel (+i)");
+		return ;
+	}
 	channel->addMember(client);
+	channel->removeInvited(client);
 	if (created)
 		channel->addOperator(client);
 	sendToChannel(channel, ":" + client->getNickname() + "!"
@@ -326,4 +332,87 @@ void Server::handleInvite(Client *client, const std::string& message)
 	sendReply(target, ":" + client->getNickname() + "!"
 		+ client->getUsername() + "@localhost INVITE "
 		+ targetNick + " " + channelName);
+}
+
+bool	Server::parseModeArgs(const std::string& args,
+	std::string& channelName, std::string& mode)
+{
+	size_t	spacePos;
+	size_t	secondSpace;
+
+	if (args.empty())
+		return (false);
+	spacePos = args.find(' ');
+	if (spacePos == std::string::npos)
+	{
+		channelName = args;
+		mode = "";
+		return (true);
+	}
+	channelName = args.substr(0, spacePos);
+	secondSpace = args.find(' ', spacePos + 1);
+	if (secondSpace == std::string::npos)
+		mode = args.substr(spacePos + 1);
+	else
+		mode = args.substr(spacePos + 1, secondSpace - spacePos - 1);
+	if (channelName.empty())
+		return (false);
+	return (true);
+}
+void	Server::handleMode(Client *client, const std::string& message)
+{
+	std::string	args;
+	std::string	channelName;
+	std::string	mode;
+	Channel		*channel;
+
+	args = getCommandArgs(message);
+	if (parseModeArgs(args, channelName, mode) == false)
+	{
+		sendNumeric(client, "461", "MODE :Not enough parameters");
+		return ;
+	}
+	if (_channels.find(channelName) == _channels.end())
+	{
+		sendNumeric(client, "403", channelName + " :No such channel");
+		return ;
+	}
+	channel = _channels[channelName];
+	if (channel->isMember(client) == false)
+	{
+		sendNumeric(client, "442", channelName
+			+ " :You're not on that channel");
+		return ;
+	}
+	if (mode.empty())
+	{
+		if (channel->isInviteOnly())
+			sendNumeric(client, "324", channelName + " +i");
+		else
+			sendNumeric(client, "324", channelName + " +");
+		return ;
+	}
+	if (channel->isOperator(client) == false)
+	{
+		sendNumeric(client, "482", channelName
+			+ " :You're not channel operator");
+		return ;
+	}
+	if (mode == "+i")
+	{
+		channel->setInviteOnly(true);
+		sendToChannel(channel, ":" + client->getNickname() + "!"
+			+ client->getUsername() + "@localhost MODE "
+			+ channelName + " +i", NULL);
+		return ;
+	}
+	if (mode == "-i")
+	{
+		channel->setInviteOnly(false);
+		sendToChannel(channel, ":" + client->getNickname() + "!"
+			+ client->getUsername() + "@localhost MODE "
+			+ channelName + " -i", NULL);
+		return ;
+	}
+	sendNumeric(client, "472", mode + " :is unknown mode char to me");
 }

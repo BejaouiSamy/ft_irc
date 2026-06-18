@@ -1,4 +1,3 @@
-
 *This project has been created as part of the 42 curriculum by bsamy & chrrodri.*
 
 # ft_irc — Internet Relay Chat Server
@@ -32,7 +31,7 @@ Example:
 Estimated mandatory progress:
 
 ```text
-62% to 65%
+68% to 72%
 ```
 
 The project currently has a solid mandatory base implemented.
@@ -54,15 +53,21 @@ Implemented so far:
 * `PRIVMSG` to users
 * `TOPIC`
 * `KICK`
-* `INVITE` started/prepared
+* `INVITE`
+* `MODE +i / -i`
+* invite-only JOIN behavior
 * safer port validation
 * `Server.cpp` refactored into smaller files
 
 Still pending:
 
-* final `INVITE` testing
-* `MODE`
-* channel modes: `+i`, `+t`, `+k`, `+o`, `+l`
+* `MODE +t / -t`
+* `TOPIC` restriction with `+t`
+* `MODE +k / -k`
+* channel password/key behavior in `JOIN`
+* `MODE +l / -l`
+* user limit behavior in `JOIN`
+* `MODE +o / -o`
 * disconnect cleanup from channels
 * real IRC client testing
 
@@ -102,17 +107,18 @@ According to the subject, the server must:
 * [x] Channel operators at basic level
 * [x] Channel `PRIVMSG`
 * [x] User-to-user `PRIVMSG`
+* [x] Invite-only JOIN behavior
 
 ### Operator commands
 
 * [x] `TOPIC`
 * [x] `KICK`
-* [~] `INVITE`
-* [ ] `MODE`
+* [x] `INVITE`
+* [~] `MODE`
 
 ### Required channel modes
 
-* [ ] `+i` / `-i` — invite-only channel
+* [x] `+i` / `-i` — invite-only channel
 * [ ] `+t` / `-t` — restrict topic changes to operators
 * [ ] `+k` / `-k` — set/remove channel password
 * [ ] `+o` / `-o` — give/remove operator privilege
@@ -142,10 +148,10 @@ Server.cpp              constructor, destructor, run()
 ServerNetwork.cpp       accept, recv, queued send, disconnect, POLLOUT helpers
 ServerCommands.cpp      command parsing and dispatcher
 ServerRegistration.cpp  PASS, NICK, USER, registration helpers
-ServerChannels.cpp      JOIN, PRIVMSG, TOPIC, KICK, INVITE, channel helpers
+ServerChannels.cpp      JOIN, PRIVMSG, TOPIC, KICK, INVITE, MODE, channel helpers
 ServerReplies.cpp       reply helpers and numeric replies
 Client.cpp              client state, input buffer, output buffer
-Channel.cpp             channel members, operators, topic, invited users
+Channel.cpp             channel members, operators, topic, invited users, modes
 ```
 
 ---
@@ -204,7 +210,7 @@ The `Channel` class stores:
 * members
 * operators
 * invited users
-* invite-only mode placeholder
+* invite-only mode
 * topic restriction mode placeholder
 * user limit placeholder
 
@@ -467,8 +473,6 @@ Expected:
 
 ### INVITE
 
-INVITE is implemented/prepared, but final testing is pending.
-
 Roger is operator in `#test`.
 
 Titi is registered but not in `#test`.
@@ -489,6 +493,121 @@ Expected in Titi:
 
 ```irc
 :roger!roger@localhost INVITE titi #test
+```
+
+If Titi is already inside the channel:
+
+```irc
+INVITE titi #test
+```
+
+Expected:
+
+```irc
+:ircserv 443 roger titi #test :is already on channel
+```
+
+---
+
+### MODE +i / -i
+
+Roger is operator in `#test`.
+
+Activate invite-only mode:
+
+```irc
+MODE #test +i
+```
+
+Expected broadcast:
+
+```irc
+:roger!roger@localhost MODE #test +i
+```
+
+Query modes:
+
+```irc
+MODE #test
+```
+
+Expected:
+
+```irc
+:ircserv 324 roger #test +i
+```
+
+Deactivate invite-only mode:
+
+```irc
+MODE #test -i
+```
+
+Expected broadcast:
+
+```irc
+:roger!roger@localhost MODE #test -i
+```
+
+Query modes again:
+
+```irc
+MODE #test
+```
+
+Expected:
+
+```irc
+:ircserv 324 roger #test +
+```
+
+---
+
+### Invite-only JOIN behavior
+
+Roger or Titi creates `#test` and activates invite-only mode:
+
+```irc
+JOIN #test
+MODE #test +i
+```
+
+A user who is not invited tries to join:
+
+```irc
+JOIN #test
+```
+
+Expected:
+
+```irc
+:ircserv 473 roger #test :Cannot join channel (+i)
+```
+
+Then the channel operator invites that user:
+
+```irc
+INVITE roger #test
+```
+
+Expected for the invited user:
+
+```irc
+:titi!titi@localhost INVITE roger #test
+```
+
+Now the invited user joins:
+
+```irc
+JOIN #test
+```
+
+Expected:
+
+```irc
+:roger!roger@localhost JOIN #test
+:ircserv 353 roger = #test :@titi roger
+:ircserv 366 roger #test :End of /NAMES list
 ```
 
 ---
@@ -516,18 +635,16 @@ This should work:
 Recommended implementation order:
 
 ```text
-1. Finish and test INVITE
-2. MODE +i / -i
-3. Connect JOIN to invite-only mode
-4. MODE +t / -t
-5. Connect TOPIC restriction to +t
-6. MODE +k / -k
-7. Connect JOIN to channel key/password
-8. MODE +l / -l
-9. Connect JOIN to user limit
-10. MODE +o / -o
-11. Disconnect cleanup from channels
-12. Real IRC client testing
+1. MODE +t / -t
+2. Connect TOPIC restriction to +t
+3. MODE +k / -k
+4. Connect JOIN to channel key/password
+5. MODE +l / -l
+6. Connect JOIN to user limit
+7. MODE +o / -o
+8. Disconnect cleanup from channels
+9. Real IRC client testing
+10. Final cleanup and defense preparation
 ```
 
 ---
@@ -538,14 +655,14 @@ Recommended commit message:
 
 ```bash
 git add .
-git commit -m "Implement TOPIC KICK and start INVITE"
+git commit -m "Implement invite-only mode and connect it to JOIN"
 ```
 
 Alternative:
 
 ```bash
 git add .
-git commit -m "Add TOPIC KICK and invite preparation"
+git commit -m "Add MODE invite-only behavior"
 ```
 
 ---
@@ -573,6 +690,4 @@ Useful references:
 
 ## AI Usage
 
-AI was used to help understand the subject, plan the work, explain errors, organize the implementation, and review code ideas.
-
-All code added to the project should be reviewed, tested, and understood by the team before final evaluation.
+AI was used to help understand the subject, plan the work and explain errors.

@@ -1,23 +1,15 @@
----
 
-# 1. `track_of_progress.md` completo
-
-Copia y pega esto entero en `track_of_progress.md`:
-
-````md
 # ft_irc — Master Progress / Cleanup / TODO List
 
 ## Current estimated mandatory progress
 
 ```text
-Estimated mandatory completion: 62% to 65%
-````
+Estimated mandatory completion: 68% to 72%
+```
 
-The networking base, registration, channels, JOIN, channel messages, private messages, output buffering, safer port parsing, server refactor, TOPIC, and KICK are done.
+The networking base, registration, channels, JOIN, channel messages, private messages, output buffering, safer port parsing, server refactor, TOPIC, KICK, INVITE, MODE +i / -i, and invite-only JOIN behavior are done.
 
-INVITE has been started/prepared, but final testing is still pending.
-
-The remaining mandatory work is mainly finishing/testing INVITE, implementing MODE and channel modes, disconnect cleanup, and real IRC client testing.
+The remaining mandatory work is mainly the rest of MODE, channel mode behavior, disconnect cleanup, final robustness testing, and real IRC client testing.
 
 ---
 
@@ -165,11 +157,14 @@ The remaining mandatory work is mainly finishing/testing INVITE, implementing MO
 [x] No text to send 412 sent
 [x] Not on channel 442 sent
 [x] User not in channel 441 sent for KICK target errors
-[x] User already on channel 443 prepared for INVITE
+[x] User already on channel 443 sent for INVITE target already in channel
 [x] Channel operator privilege error 482 sent
 [x] Topic numeric 331 sent when no topic is set
 [x] Topic numeric 332 sent when topic exists
-[x] Invite confirmation numeric 341 prepared
+[x] Invite confirmation numeric 341 sent
+[x] Channel mode numeric 324 sent
+[x] Invite-only join error 473 sent
+[x] Unknown mode numeric 472 prepared
 ```
 
 ### Channel foundation
@@ -184,7 +179,7 @@ The remaining mandatory work is mainly finishing/testing INVITE, implementing MO
 [x] Channel stores members using std::vector<Client*>
 [x] Channel stores operators using std::vector<Client*>
 [x] Channel stores invited users using std::vector<Client*>
-[x] Channel stores invite-only placeholder for mode +i
+[x] Channel stores invite-only mode for +i
 [x] Channel stores topic restriction placeholder for mode +t
 [x] Channel stores user limit placeholder for mode +l
 [x] Channel exposes members through getMembers()
@@ -199,6 +194,8 @@ The remaining mandatory work is mainly finishing/testing INVITE, implementing MO
 [x] Channel can check if a client is invited
 [x] Channel can set topic
 [x] Channel can check if topic exists
+[x] Channel can set invite-only mode
+[x] Channel can check invite-only mode
 [x] Channel can build names list
 [x] Channel.cpp added to Makefile
 [x] Project compiles with Channel.cpp
@@ -223,7 +220,12 @@ The remaining mandatory work is mainly finishing/testing INVITE, implementing MO
 [x] Test JOIN with two clients
 [x] Test JOIN error 461
 [x] Test JOIN error 403
-[ ] Check invite-only mode
+[x] Check invite-only mode
+[x] Block non-invited user from invite-only channel
+[x] Allow invited user to join invite-only channel
+[x] Remove invited status after successful JOIN
+[x] Test invite-only JOIN blocked with numeric 473
+[x] Test invited user can JOIN after INVITE
 [ ] Check channel key/password
 [ ] Check user limit
 [ ] Send topic reply if topic exists
@@ -258,8 +260,8 @@ The remaining mandatory work is mainly finishing/testing INVITE, implementing MO
 ```text
 [x] Implement TOPIC
 [x] Implement KICK
-[~] Implement INVITE
-[ ] Implement MODE
+[x] Implement INVITE
+[~] Implement MODE
 ```
 
 ## TOPIC
@@ -279,6 +281,7 @@ The remaining mandatory work is mainly finishing/testing INVITE, implementing MO
 [x] TOPIC numeric 403 implemented
 [x] TOPIC numeric 442 implemented
 [x] TOPIC tested
+[ ] TOPIC respects +t topic restriction
 ```
 
 ## KICK
@@ -324,13 +327,44 @@ The remaining mandatory work is mainly finishing/testing INVITE, implementing MO
 [x] INVITE stores invited user in Channel
 [x] INVITE sends numeric 341 to inviter
 [x] INVITE sends INVITE message to invited user
-[ ] Test INVITE success
+[x] Test INVITE success
+[x] Test INVITE sends 341
+[x] Test INVITE sends message to invited user
+[x] Test INVITE target already in channel with numeric 443
 [ ] Test INVITE missing parameters
 [ ] Test INVITE no such nick
 [ ] Test INVITE no such channel
 [ ] Test INVITE inviter not in channel
 [ ] Test INVITE inviter not operator
-[ ] Test INVITE target already in channel
+```
+
+## MODE
+
+```text
+[x] Add handleMode()
+[x] Connect CMD_MODE to handleMode()
+[x] Add parseModeArgs()
+[x] MODE can query current channel modes
+[x] MODE query sends numeric 324
+[x] MODE checks missing parameters
+[x] MODE checks channel exists
+[x] MODE checks user is in channel
+[x] MODE checks user is operator before changing modes
+[x] MODE +i activates invite-only mode
+[x] MODE -i disables invite-only mode
+[x] MODE +i broadcasts mode change to channel
+[x] MODE -i broadcasts mode change to channel
+[x] Test MODE +i
+[x] Test MODE -i
+[x] Test MODE query 324
+[x] Test MODE missing parameters 461
+[x] Test MODE no such channel 403
+[x] Test MODE user not in channel 442
+[x] Test MODE user not operator 482
+[ ] MODE +t / -t topic restricted to operators
+[ ] MODE +k / -k channel key/password
+[ ] MODE +o / -o give/take operator privilege
+[ ] MODE +l / -l set/remove user limit
 ```
 
 ---
@@ -338,8 +372,8 @@ The remaining mandatory work is mainly finishing/testing INVITE, implementing MO
 # MODE requirements
 
 ```text
-[ ] Implement MODE
-[ ] +i / -i invite-only
+[~] Implement MODE
+[x] +i / -i invite-only
 [ ] +t / -t topic restricted to operators
 [ ] +k / -k channel key/password
 [ ] +o / -o give/take operator privilege
@@ -375,11 +409,21 @@ The remaining mandatory work is mainly finishing/testing INVITE, implementing MO
 [x] Test compile after refactor
 [x] Test TOPIC
 [x] Test KICK
-[ ] Test INVITE
+[x] Test INVITE
+[x] Test MODE +i
+[x] Test MODE -i
+[x] Test invite-only JOIN blocked
+[x] Test invited user can JOIN invite-only channel
 [ ] Test partial messages manually
 [ ] Test multiple commands in one packet
 [ ] Test USER with missing parameters
-[ ] Test MODE
+[ ] Test MODE +t / -t
+[ ] Test TOPIC with +t active
+[ ] Test MODE +k / -k
+[ ] Test JOIN with channel key/password
+[ ] Test MODE +l / -l
+[ ] Test JOIN with user limit
+[ ] Test MODE +o / -o
 [ ] Test disconnect while inside channel
 [ ] Test with real IRC client
 [ ] Choose one reference IRC client for evaluation
@@ -402,6 +446,7 @@ The remaining mandatory work is mainly finishing/testing INVITE, implementing MO
 [x] Move network logic to ServerNetwork.cpp
 [x] Keep KICK function shorter with parseKickArgs()
 [x] Keep INVITE function shorter with parseInviteArgs()
+[x] Keep MODE parsing separate with parseModeArgs()
 [ ] Keep functions short and focused
 [ ] Keep helper functions private when they are only used inside Server
 [ ] Keep data members private
@@ -472,12 +517,12 @@ The remaining mandatory work is mainly finishing/testing INVITE, implementing MO
 [ ] Remove disconnected client from all channels
 [ ] Delete empty channels if needed
 [ ] Decide if unused Channel::broadcast() should stay or be removed
-[ ] Activate invite-only mode logic
+[x] Activate invite-only mode logic
 [ ] Activate topic restriction logic
 [ ] Activate password/key logic
 [ ] Activate user limit logic
 [x] Add invited clients list for INVITE / +i
-[ ] Connect invited clients list to JOIN when +i is active
+[x] Connect invited clients list to JOIN when +i is active
 ```
 
 ---
@@ -485,18 +530,16 @@ The remaining mandatory work is mainly finishing/testing INVITE, implementing MO
 # Next recommended implementation order
 
 ```text
-1. Finish and test INVITE
-2. MODE +i / -i
-3. Connect JOIN to invite-only mode
-4. MODE +t / -t
-5. Connect TOPIC restriction to +t
-6. MODE +k / -k
-7. Connect JOIN to channel key/password
-8. MODE +l / -l
-9. Connect JOIN to user limit
-10. MODE +o / -o
-11. Disconnect cleanup from channels
-12. Real IRC client testing
+1. MODE +t / -t
+2. Connect TOPIC restriction to +t
+3. MODE +k / -k
+4. Connect JOIN to channel key/password
+5. MODE +l / -l
+6. Connect JOIN to user limit
+7. MODE +o / -o
+8. Disconnect cleanup from channels
+9. Real IRC client testing
+10. Final cleanup and defense preparation
 ```
 
 ---
@@ -505,5 +548,12 @@ The remaining mandatory work is mainly finishing/testing INVITE, implementing MO
 
 ```bash
 git add .
-git commit -m "Implement TOPIC KICK and start INVITE"
+git commit -m "Implement invite-only mode and connect it to JOIN"
+```
+
+Alternative:
+
+```bash
+git add .
+git commit -m "Add MODE invite-only behavior"
 ```

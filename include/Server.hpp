@@ -59,7 +59,7 @@ private:
 	void			handleTopic(Client *client, const std::string& message);
 	void			handleKick(Client *client, const std::string& message);
 	void			handleInvite(Client *client, const std::string& message);
-
+    void	        handleMode(Client *client, const std::string& message);
 	bool			parseKickArgs(const std::string& args,
 						std::string& channelName,
 						std::string& targetNick,
@@ -68,6 +68,9 @@ private:
 	bool			parseInviteArgs(const std::string& args,
 						std::string& targetNick,
 						std::string& channelName);
+    bool	        parseModeArgs(const std::string& args,
+			            std::string& channelName,
+			            std::string& mode);
 
 	bool			isValidChannelName(const std::string& name) const;
 	void			sendToChannel(Channel *channel, const std::string& message,

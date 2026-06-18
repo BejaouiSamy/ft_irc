@@ -32,6 +32,8 @@ public:
 
   void						setTopic(const std::string& topic);
   bool						hasTopic() const;
+  void	          setInviteOnly(bool value);
+  bool	          isInviteOnly() const;
 
   void						addMember(Client *client);
   void						removeMember(Client *client);
