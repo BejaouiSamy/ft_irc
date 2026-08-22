@@ -36,7 +36,6 @@ void Server::acceptClient()
 	client_poll.revents = 0;
 	_fds.push_back(client_poll);
 	_clients[client_fd] = new Client(client_fd);
-	std::cout << "Client connected with fd " << client_fd << std::endl;
 }
 
 void Server::handleData(int fd)
@@ -49,7 +48,6 @@ void Server::handleData(int fd)
 	bytes = recv(fd, buffer, sizeof(buffer) - 1, 0);
 	if (bytes <= 0)
 	{
-		std::cout << "Client disconnected fd " << fd << std::endl;
 		removeClient(fd);
 		return ;
 	}
@@ -61,8 +59,6 @@ void Server::handleData(int fd)
 		message = client->extractMessage();
 		if (message.empty())
 			break ;
-		std::cout << "Full IRC command from fd " << fd << ": "
-			<< message << std::endl;
 		dispatchCommand(client, message);
 	}
 }
@@ -92,26 +88,33 @@ void Server::handleWrite(int fd)
 	if (bytes == -1 && (errno == EAGAIN || errno == EWOULDBLOCK
 			|| errno == EINTR))
 		return ;
-	std::cout << "Client disconnected during send fd " << fd << std::endl;
 	removeClient(fd);
 }
 
-void Server::removeClient(int fd)
+void	Server::removeClient(int fd)
 {
-	for (size_t i = 0; i < _fds.size(); ++i)
+	std::map<int, Client*>::iterator	clientIt;
+	std::vector<struct pollfd>::iterator	fdIt;
+	Client								*client;
+
+	clientIt = _clients.find(fd);
+	if (clientIt != _clients.end())
 	{
-		if (_fds[i].fd == fd)
+		client = clientIt->second;
+		removeClientFromChannels(client);
+		delete client;
+		_clients.erase(clientIt);
+	}
+	for (fdIt = _fds.begin(); fdIt != _fds.end(); ++fdIt)
+	{
+		if (fdIt->fd == fd)
 		{
-			close(_fds[i].fd);
-			_fds.erase(_fds.begin() + i);
+			_fds.erase(fdIt);
 			break ;
 		}
 	}
-	if (_clients.find(fd) != _clients.end())
-	{
-		delete _clients[fd];
-		_clients.erase(fd);
-	}
+	close(fd);
+	std::cout << "Client disconnected with fd " << fd << std::endl;
 }
 
 void Server::enablePollOut(int fd)

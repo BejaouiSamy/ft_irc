@@ -23,6 +23,9 @@ private:
 		CMD_INVITE,
 		CMD_TOPIC,
 		CMD_MODE,
+		CMD_CAP,
+		CMD_PING,
+		CMD_USERHOST,
 		CMD_UNKNOWN
 	};
 
@@ -44,6 +47,7 @@ private:
 	void			dispatchCommand(Client *client, const std::string& message);
 	std::string		getCommandName(const std::string& message);
 	std::string		getCommandArgs(const std::string& message);
+	std::string		trimSpaces(const std::string& str) const;
 	e_CommandType	getCommandType(const std::string& command);
 	bool			commandNeedsRegistration(e_CommandType type) const;
 
@@ -60,6 +64,9 @@ private:
 	void			handleKick(Client *client, const std::string& message);
 	void			handleInvite(Client *client, const std::string& message);
     void	        handleMode(Client *client, const std::string& message);
+	void			handleCap(Client *client, const std::string& message);
+	void			handlePing(Client *client, const std::string& message);
+	void			handleUserhost(Client *client, const std::string& message);
 	bool			parseKickArgs(const std::string& args,
 						std::string& channelName,
 						std::string& targetNick,
@@ -70,12 +77,19 @@ private:
 						std::string& channelName);
     bool	        parseModeArgs(const std::string& args,
 			            std::string& channelName,
-			            std::string& mode);
-
+			            std::string& mode,
+			            std::string& modeArg);
+	std::string		getChannelModes(Channel *channel) const;
+	bool			applyChannelMode(Client *client,
+						Channel *channel,
+						const std::string& channelName,
+						const std::string& mode,
+			            const std::string& modeArg);
 	bool			isValidChannelName(const std::string& name) const;
 	void			sendToChannel(Channel *channel, const std::string& message,
 						Client *except);
-
+	void			removeClientFromChannels(Client *client);
+    bool	        parsePositiveInt(const std::string& str, int& value) const;
 	void			sendReply(Client *client, const std::string& message);
 	void			sendNumeric(Client *client, const std::string& code,
 						const std::string& message);

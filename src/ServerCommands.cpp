@@ -42,7 +42,29 @@ Server::e_CommandType Server::getCommandType(const std::string& command)
 		return (CMD_TOPIC);
 	if (command == "MODE")
 		return (CMD_MODE);
+	if (command == "CAP")
+		return (CMD_CAP);
+	if (command == "PING")
+		return (CMD_PING);
+	if (command == "USERHOST")
+		return (CMD_USERHOST);
 	return (CMD_UNKNOWN);
+}
+
+std::string	Server::trimSpaces(const std::string& str) const
+{
+	size_t	start;
+	size_t	end;
+
+	start = 0;
+	while (start < str.length() && str[start] == ' ')
+		start++;
+	if (start == str.length())
+		return ("");
+	end = str.length() - 1;
+	while (end > start && str[end] == ' ')
+		end--;
+	return (str.substr(start, end - start + 1));
 }
 
 bool Server::commandNeedsRegistration(e_CommandType type) const
@@ -61,11 +83,8 @@ void Server::dispatchCommand(Client *client, const std::string& message)
 
 	command = getCommandName(message);
 	type = getCommandType(command);
-	std::cout << "Command detected from fd " << client->getFd()
-		<< ": " << command << std::endl;
 	if (commandNeedsRegistration(type) && !client->isRegistered())
 	{
-		std::cout << "Command blocked: client is not registered" << std::endl;
 		sendNotRegistered(client);
 		return ;
 	}
@@ -98,9 +117,66 @@ void Server::dispatchCommand(Client *client, const std::string& message)
 		case CMD_MODE:
 			handleMode(client, message);
 			break ;
+		case CMD_CAP:
+			handleCap(client, message);
+			break ;
+		case CMD_PING:
+			handlePing(client, message);
+			break ;
+		case CMD_USERHOST:
+			handleUserhost(client, message);
+			break ;
 		default:
-			std::cout << "Unknown command: " << command << std::endl;
 			sendUnknownCommand(client, command);
 			break ;
 	}
+}
+void	Server::handleCap(Client *client, const std::string& message)
+{
+	std::string	args;
+	std::string	target;
+
+	args = getCommandArgs(message);
+	if (client->getNickname().empty())
+		target = "*";
+	else
+		target = client->getNickname();
+	if (args.find("LS") == 0)
+		sendReply(client, ":ircserv CAP " + target + " LS :");
+}
+
+void	Server::handlePing(Client *client, const std::string& message)
+{
+	std::string	token;
+
+	token = getCommandArgs(message);
+	if (token.empty())
+	{
+		sendNumeric(client, "409", ":No origin specified");
+		return ;
+	}
+	if (token[0] == ':')
+		token = token.substr(1);
+	sendReply(client, ":ircserv PONG ircserv :" + token);
+}
+
+
+void	Server::handleUserhost(Client *client, const std::string& message)
+{
+	std::string	nick;
+	Client		*target;
+
+	nick = getCommandArgs(message);
+	if (nick.empty())
+		nick = client->getNickname();
+	if (nick.empty() == false && nick[0] == ':')
+		nick = nick.substr(1);
+	target = findClientByNickname(nick);
+	if (target == NULL)
+	{
+		sendNumeric(client, "302", ":");
+		return ;
+	}
+	sendNumeric(client, "302", ":" + target->getNickname()
+		+ "=+" + target->getUsername() + "@localhost");
 }

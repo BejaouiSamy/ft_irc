@@ -1,23 +1,23 @@
 #include "Channel.hpp"
 
-Channel::Channel()
+Channel::Channel() :
+	_name(""),
+	_topic(""),
+	_password(""),
+	_inviteOnly(false),
+	_topicRestricted(false),
+	_userLimit(0)
 {
-	_name = "";
-	_topic = "";
-	_password = "";
-	_inviteOnly = false;
-	_topicRestricted = false;
-	_userLimit = 0;
 }
 
-Channel::Channel(const std::string& name)
+Channel::Channel(const std::string& name) :
+	_name(name),
+	_topic(""),
+	_password(""),
+	_inviteOnly(false),
+	_topicRestricted(false),
+	_userLimit(0)
 {
-	_name = name;
-	_topic = "";
-	_password = "";
-	_inviteOnly = false;
-	_topicRestricted = false;
-	_userLimit = 0;
 }
 
 Channel::Channel(const Channel& other)
@@ -202,4 +202,53 @@ void	Channel::setInviteOnly(bool value)
 bool	Channel::isInviteOnly() const
 {
 	return (_inviteOnly);
+}
+
+void	Channel::setTopicRestricted(bool value)
+{
+	_topicRestricted = value;
+}
+
+bool	Channel::isTopicRestricted() const
+{
+	return (_topicRestricted);
+}
+void	Channel::setPassword(const std::string& password)
+{
+	_password = password;
+}
+
+std::string	Channel::getPassword() const
+{
+	return (_password);
+}
+
+bool	Channel::hasPassword() const
+{
+	return (_password.empty() == false);
+}
+
+void	Channel::clearPassword()
+{
+	_password = "";
+}
+
+void	Channel::setUserLimit(int limit)
+{
+	_userLimit = limit;
+}
+
+int	Channel::getUserLimit() const
+{
+	return (_userLimit);
+}
+
+bool	Channel::hasUserLimit() const
+{
+	return (_userLimit > 0);
+}
+
+void	Channel::clearUserLimit()
+{
+	_userLimit = 0;
 }

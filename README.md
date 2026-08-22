@@ -19,24 +19,24 @@ The executable runs like this:
 Example:
 
 ```bash
-./ircserv 6667 pass
+./ircserv 6667 con
 ```
 
-`6667` is used in our tests because it is the traditional IRC port, but the server must work with any valid port passed as an argument.
+`6667` is used in our tests because it is the traditional IRC port, but the server works with any valid port passed as an argument.
 
 ---
 
 ## Current Status
 
-Estimated mandatory progress:
+Mandatory part status:
 
 ```text
-68% to 72%
+99% complete
 ```
 
-The project currently has a solid mandatory base implemented.
+The mandatory IRC server is implemented and manually tested with both `nc` and a real IRC client.
 
-Implemented so far:
+Implemented:
 
 * server socket setup
 * non-blocking server and client file descriptors
@@ -48,28 +48,33 @@ Implemented so far:
 * numeric replies for common errors
 * channel creation with `JOIN`
 * first user in a channel becomes channel operator
-* JOIN broadcast to channel members
-* `PRIVMSG` to channels
-* `PRIVMSG` to users
+* channel member list with `353` / `366`
+* channel messages with `PRIVMSG`
+* user-to-user messages with `PRIVMSG`
 * `TOPIC`
 * `KICK`
 * `INVITE`
-* `MODE +i / -i`
+* all required channel modes:
+
+    * `+i` / `-i`
+    * `+t` / `-t`
+    * `+k` / `-k`
+    * `+l` / `-l`
+    * `+o` / `-o`
 * invite-only JOIN behavior
-* safer port validation
-* `Server.cpp` refactored into smaller files
-
-Still pending:
-
-* `MODE +t / -t`
-* `TOPIC` restriction with `+t`
-* `MODE +k / -k`
-* channel password/key behavior in `JOIN`
-* `MODE +l / -l`
-* user limit behavior in `JOIN`
-* `MODE +o / -o`
+* channel key/password behavior
+* user limit behavior
+* topic restriction behavior
+* operator privilege handling
 * disconnect cleanup from channels
-* real IRC client testing
+* compatibility helpers for real IRC clients:
+
+    * `CAP`
+    * `PING`
+    * `USERHOST`
+* testing with AdiIRC
+* safer port validation
+* final debug output cleanup
 
 ---
 
@@ -86,8 +91,8 @@ According to the subject, the server must:
 * [x] Avoid `fork()`
 * [x] Accept multiple clients through the same `poll()` loop
 * [x] Correctly rebuild full commands from buffered data ending in `\r\n`
-* [ ] Work correctly with a real IRC client
-* [ ] Avoid crashing or quitting unexpectedly in all tested cases
+* [x] Work correctly with a real IRC client
+* [x] Avoid crashing or quitting unexpectedly in all tested cases
 
 ---
 
@@ -104,25 +109,25 @@ According to the subject, the server must:
 * [x] `JOIN`
 * [x] Channel creation
 * [x] Channel members
-* [x] Channel operators at basic level
+* [x] Channel operators
 * [x] Channel `PRIVMSG`
 * [x] User-to-user `PRIVMSG`
-* [x] Invite-only JOIN behavior
+* [x] Channel message forwarding to other members
 
 ### Operator commands
 
-* [x] `TOPIC`
 * [x] `KICK`
 * [x] `INVITE`
-* [~] `MODE`
+* [x] `TOPIC`
+* [x] `MODE`
 
 ### Required channel modes
 
 * [x] `+i` / `-i` — invite-only channel
-* [ ] `+t` / `-t` — restrict topic changes to operators
-* [ ] `+k` / `-k` — set/remove channel password
-* [ ] `+o` / `-o` — give/remove operator privilege
-* [ ] `+l` / `-l` — set/remove user limit
+* [x] `+t` / `-t` — restrict topic changes to operators
+* [x] `+k` / `-k` — set/remove channel password
+* [x] `+o` / `-o` — give/remove operator privilege
+* [x] `+l` / `-l` — set/remove user limit
 
 ---
 
@@ -141,18 +146,20 @@ src/Client.cpp
 src/Channel.cpp
 ```
 
-Current responsibilities:
+Responsibilities:
 
 ```text
 Server.cpp              constructor, destructor, run()
 ServerNetwork.cpp       accept, recv, queued send, disconnect, POLLOUT helpers
-ServerCommands.cpp      command parsing and dispatcher
+ServerCommands.cpp      command parsing, command type detection, dispatcher, small client helpers
 ServerRegistration.cpp  PASS, NICK, USER, registration helpers
 ServerChannels.cpp      JOIN, PRIVMSG, TOPIC, KICK, INVITE, MODE, channel helpers
 ServerReplies.cpp       reply helpers and numeric replies
 Client.cpp              client state, input buffer, output buffer
 Channel.cpp             channel members, operators, topic, invited users, modes
 ```
+
+This separation keeps the network layer, command dispatching, registration, replies, and channel logic easier to explain.
 
 ---
 
@@ -178,6 +185,12 @@ std::map<int, Client*> _clients;
 ```
 
 The file descriptor is used as the key because `poll()` tells the server which fd is ready.
+
+Channels are stored like this:
+
+```cpp
+std::map<std::string, Channel*> _channels;
+```
 
 ---
 
@@ -206,15 +219,15 @@ The `Channel` class stores:
 
 * channel name
 * topic
-* password/key placeholder
+* password/key
 * members
 * operators
 * invited users
 * invite-only mode
-* topic restriction mode placeholder
-* user limit placeholder
+* topic restriction mode
+* user limit
 
-Channels currently use:
+Channels use:
 
 ```cpp
 std::vector<Client*> _members;
@@ -226,7 +239,7 @@ This keeps the channel logic simple and easy to explain.
 
 ---
 
-## Why We Use Output Buffers
+## Why We Use Input and Output Buffers
 
 The project requires non-blocking I/O and one main `poll()` loop.
 
@@ -237,6 +250,7 @@ poll() reports POLLIN
 recv() reads data
 data is stored in the input buffer
 full IRC commands are extracted using \r\n
+each complete command is dispatched
 ```
 
 For outgoing data:
@@ -252,7 +266,9 @@ POLLOUT is disabled when the buffer is empty
 
 Command handlers do not call `send()` directly.
 
-The only real `send()` call should be inside `handleWrite()`.
+The only real `send()` call is inside `handleWrite()`.
+
+The only real `recv()` call is inside the network read handler.
 
 ---
 
@@ -295,7 +311,7 @@ Run the server with:
 Example:
 
 ```bash
-./ircserv 6667 pass
+./ircserv 6667 con
 ```
 
 Then connect with netcat:
@@ -307,8 +323,41 @@ nc -C 127.0.0.1 6667
 The password is not part of the `nc` command. It is sent after connecting:
 
 ```irc
-PASS pass
+PASS con
 ```
+
+---
+
+## Real IRC Client
+
+The reference IRC client used for testing was:
+
+```text
+AdiIRC
+```
+
+Connection settings used:
+
+```text
+Server: 127.0.0.1
+Port: 6667
+SSL: off
+Password: con
+Nick: roger
+Username: roger
+Fullname: roger
+```
+
+AdiIRC was tested with:
+
+```irc
+/join #test
+/mode #test +i
+/mode #test
+/topic #test hello from AdiIRC
+```
+
+Normal channel messages were also tested from AdiIRC and received by another client connected with `nc`.
 
 ---
 
@@ -317,15 +366,27 @@ PASS pass
 ### Registration
 
 ```irc
-PASS pass
+PASS con
 NICK roger
-USER roger 0 * :Roger
+USER roger 0 * :roger
 ```
 
 Expected:
 
 ```irc
 :ircserv 001 roger :Welcome to the ft_irc server, roger
+```
+
+Malformed `USER` is rejected:
+
+```irc
+USER titi -0 :titi
+```
+
+Expected:
+
+```irc
+:ircserv 461 titi USER :Not enough parameters
 ```
 
 ---
@@ -335,18 +396,18 @@ Expected:
 Client 1:
 
 ```irc
-PASS pass
+PASS con
 NICK roger
-USER roger 0 * :Roger
+USER roger 0 * :roger
 JOIN #test
 ```
 
 Client 2:
 
 ```irc
-PASS pass
+PASS con
 NICK titi
-USER titi 0 * :Titi
+USER titi 0 * :titi
 JOIN #test
 ```
 
@@ -437,6 +498,36 @@ Expected:
 
 ---
 
+### MODE +t / -t
+
+Activate topic restriction:
+
+```irc
+MODE #test +t
+```
+
+Expected:
+
+```irc
+:roger!roger@localhost MODE #test +t
+```
+
+When `+t` is active, only channel operators can change the topic.
+
+Deactivate topic restriction:
+
+```irc
+MODE #test -t
+```
+
+Expected:
+
+```irc
+:roger!roger@localhost MODE #test -t
+```
+
+---
+
 ### KICK
 
 Roger is operator in `#test`.
@@ -495,23 +586,11 @@ Expected in Titi:
 :roger!roger@localhost INVITE titi #test
 ```
 
-If Titi is already inside the channel:
-
-```irc
-INVITE titi #test
-```
-
-Expected:
-
-```irc
-:ircserv 443 roger titi #test :is already on channel
-```
+If invite-only mode is active, the invited user can join after receiving the invite.
 
 ---
 
 ### MODE +i / -i
-
-Roger is operator in `#test`.
 
 Activate invite-only mode:
 
@@ -565,7 +644,7 @@ Expected:
 
 ### Invite-only JOIN behavior
 
-Roger or Titi creates `#test` and activates invite-only mode:
+Roger creates `#test` and activates invite-only mode:
 
 ```irc
 JOIN #test
@@ -581,19 +660,19 @@ JOIN #test
 Expected:
 
 ```irc
-:ircserv 473 roger #test :Cannot join channel (+i)
+:ircserv 473 titi #test :Cannot join channel (+i)
 ```
 
-Then the channel operator invites that user:
+The channel operator invites that user:
 
 ```irc
-INVITE roger #test
+INVITE titi #test
 ```
 
 Expected for the invited user:
 
 ```irc
-:titi!titi@localhost INVITE roger #test
+:roger!roger@localhost INVITE titi #test
 ```
 
 Now the invited user joins:
@@ -605,9 +684,173 @@ JOIN #test
 Expected:
 
 ```irc
-:roger!roger@localhost JOIN #test
-:ircserv 353 roger = #test :@titi roger
-:ircserv 366 roger #test :End of /NAMES list
+:titi!titi@localhost JOIN #test
+:ircserv 353 titi = #test :@roger titi
+:ircserv 366 titi #test :End of /NAMES list
+```
+
+---
+
+### MODE +k / -k
+
+Set channel key:
+
+```irc
+MODE #test +k secret
+```
+
+Expected:
+
+```irc
+:roger!roger@localhost MODE #test +k secret
+```
+
+A user who tries to join without the key should receive:
+
+```irc
+:ircserv 475 titi #test :Cannot join channel (+k)
+```
+
+A user can join with:
+
+```irc
+JOIN #test secret
+```
+
+Remove key:
+
+```irc
+MODE #test -k
+```
+
+Expected:
+
+```irc
+:roger!roger@localhost MODE #test -k
+```
+
+---
+
+### MODE +l / -l
+
+Set user limit:
+
+```irc
+MODE #test +l 1
+```
+
+Expected:
+
+```irc
+:roger!roger@localhost MODE #test +l 1
+```
+
+If the channel is full, another user should receive:
+
+```irc
+:ircserv 471 titi #test :Cannot join channel (+l)
+```
+
+Remove limit:
+
+```irc
+MODE #test -l
+```
+
+Expected:
+
+```irc
+:roger!roger@localhost MODE #test -l
+```
+
+---
+
+### MODE +o / -o
+
+Give operator privilege:
+
+```irc
+MODE #test +o titi
+```
+
+Expected:
+
+```irc
+:roger!roger@localhost MODE #test +o titi
+```
+
+After that, Titi can use operator commands such as:
+
+```irc
+KICK #test roger :test
+```
+
+Remove operator privilege:
+
+```irc
+MODE #test -o titi
+```
+
+Expected:
+
+```irc
+:titi!titi@localhost MODE #test -o titi
+```
+
+After `-o`, Titi should no longer be able to use operator commands:
+
+```irc
+KICK #test roger :test
+```
+
+Expected:
+
+```irc
+:ircserv 482 titi #test :You're not channel operator
+```
+
+---
+
+### Partial command test
+
+The server rebuilds commands received in pieces.
+
+Example with `nc`:
+
+```text
+com
+Ctrl+D
+man
+Ctrl+D
+d
+Enter
+```
+
+Expected:
+
+```irc
+:ircserv 421 roger command :Unknown command
+```
+
+The important behavior is that the server waits until it receives the final `\r\n` before dispatching the full command.
+
+---
+
+### Multiple commands in one packet
+
+```bash
+printf "PASS con\r\nNICK roger\r\nUSER roger 0 * :roger\r\nJOIN #final\r\nMODE #final +it\r\nMODE #final\r\n" | nc -C 127.0.0.1 6667
+```
+
+Expected:
+
+```irc
+:ircserv 001 roger :Welcome to the ft_irc server, roger
+:roger!roger@localhost JOIN #final
+:ircserv 353 roger = #final :@roger
+:ircserv 366 roger #final :End of /NAMES list
+:roger!roger@localhost MODE #final +it
+:ircserv 324 roger #final +it
 ```
 
 ---
@@ -617,52 +860,35 @@ Expected:
 These should fail with a clear error message:
 
 ```bash
-./ircserv hello pass
-./ircserv 0 pass
-./ircserv 99999 pass
+./ircserv hello con
+./ircserv 0 con
+./ircserv 99999 con
 ```
 
 This should work:
 
 ```bash
-./ircserv 6667 pass
+./ircserv 6667 con
 ```
 
 ---
 
-## Next Steps
+## Final Checks
 
-Recommended implementation order:
+Final checks performed:
+
+```bash
+grep -R "send(" -n src include
+grep -R "recv(" -n src include
+grep -R "std::cout" -n src include
+```
+
+Expected:
 
 ```text
-1. MODE +t / -t
-2. Connect TOPIC restriction to +t
-3. MODE +k / -k
-4. Connect JOIN to channel key/password
-5. MODE +l / -l
-6. Connect JOIN to user limit
-7. MODE +o / -o
-8. Disconnect cleanup from channels
-9. Real IRC client testing
-10. Final cleanup and defense preparation
-```
-
----
-
-## Current Git Checkpoint
-
-Recommended commit message:
-
-```bash
-git add .
-git commit -m "Implement invite-only mode and connect it to JOIN"
-```
-
-Alternative:
-
-```bash
-git add .
-git commit -m "Add MODE invite-only behavior"
+send() appears only in ServerNetwork.cpp
+recv() appears only in ServerNetwork.cpp
+only minimal std::cout output remains
 ```
 
 ---
@@ -675,19 +901,29 @@ Useful references:
 * Modern IRC documentation
 * Linux manual pages for:
 
-  * `socket`
-  * `setsockopt`
-  * `bind`
-  * `listen`
-  * `accept`
-  * `fcntl`
-  * `poll`
-  * `recv`
-  * `send`
-  * `close`
+    * `socket`
+    * `setsockopt`
+    * `bind`
+    * `listen`
+    * `accept`
+    * `fcntl`
+    * `poll`
+    * `recv`
+    * `send`
+    * `close`
 
 ---
 
 ## AI Usage
 
-AI was used to help understand the subject, plan the work and explain errors.
+AI was used as a learning and support tool during this project.
+
+It helped us:
+- understand parts of the subject and IRC protocol behavior;
+- plan the implementation order;
+- debug compilation and runtime errors;
+- create manual test scenarios with `nc` and AdiIRC;
+- review the mandatory requirements before final cleanup;
+- improve the wording and structure of this README.
+
+All code was reviewed, adapted, compiled, tested, and defended by the project members.s used to help understand the subject, plan the implementation, explain errors, create test scenarios, and review the final mandatory requirements.

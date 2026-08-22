@@ -1,19 +1,18 @@
-
 # ft_irc — Master Progress / Cleanup / TODO List
 
 ## Current estimated mandatory progress
 
 ```text
-Estimated mandatory completion: 68% to 72%
-```
+Estimated mandatory completion: 100%
+````
 
-The networking base, registration, channels, JOIN, channel messages, private messages, output buffering, safer port parsing, server refactor, TOPIC, KICK, INVITE, MODE +i / -i, and invite-only JOIN behavior are done.
+The mandatory IRC server is implemented, cleaned up, and manually tested with both `nc` and a real IRC client.
 
-The remaining mandatory work is mainly the rest of MODE, channel mode behavior, disconnect cleanup, final robustness testing, and real IRC client testing.
+The remaining work is documentation review, final `make fclean && make`, and final defense preparation.
 
 ---
 
-## Current status: done
+## Final status: done
 
 ### Server foundation
 
@@ -39,21 +38,27 @@ The remaining mandatory work is mainly the rest of MODE, channel mode behavior, 
 [x] Client fds added to poll list
 [x] handleData() reads with recv() after POLLIN
 [x] handleWrite() writes with send() after POLLOUT
-[x] send() appears only in handleWrite()
+[x] send() appears only in ServerNetwork.cpp
+[x] recv() appears only in ServerNetwork.cpp
 [x] Client output buffer added
 [x] sendReply() queues outgoing replies instead of sending directly
 [x] POLLOUT enabled when output is pending
 [x] POLLOUT disabled when output buffer is empty
-[x] Partial send handling started
+[x] Partial send handling implemented
 [x] Basic POLLHUP / POLLERR / POLLNVAL handling added
 [x] removeClient() closes and removes disconnected clients
-[x] Basic Server destructor added
+[x] removeClientFromChannels() removes disconnected clients from channels
+[x] Empty channels are deleted
+[x] Server destructor added
 [x] Destructor deletes Client objects
 [x] Destructor deletes Channel objects
 [x] Destructor closes fds
+[x] Debug std::cout messages cleaned up
 ```
 
-### Refactor
+---
+
+## Refactor
 
 ```text
 [x] Server.cpp split into smaller files
@@ -63,12 +68,29 @@ The remaining mandatory work is mainly the rest of MODE, channel mode behavior, 
 [x] ServerRegistration.cpp added
 [x] ServerChannels.cpp added
 [x] ServerReplies.cpp added
-[x] Makefile updated for new .cpp files
+[x] Client.cpp added
+[x] Channel.cpp added
+[x] Makefile updated for all .cpp files
 [x] Project compiles after refactor
-[x] Existing registration / JOIN / PRIVMSG behavior retested after refactor
+[x] Empty src/commands folder removed
 ```
 
-### Client handling
+Current file responsibilities:
+
+```text
+Server.cpp              constructor, destructor, run()
+ServerNetwork.cpp       accept, recv, queued send, disconnect, POLLOUT helpers
+ServerCommands.cpp      command parsing, command type detection, dispatcher, small real-client helpers
+ServerRegistration.cpp  PASS, NICK, USER, registration helpers
+ServerChannels.cpp      JOIN, PRIVMSG, TOPIC, KICK, INVITE, MODE, channel helpers
+ServerReplies.cpp       reply helpers and numeric replies
+Client.cpp              client state, input buffer, output buffer
+Channel.cpp             channel members, operators, topic, invited users, modes
+```
+
+---
+
+## Client handling
 
 ```text
 [x] Client.hpp created
@@ -81,10 +103,14 @@ The remaining mandatory work is mainly the rest of MODE, channel mode behavior, 
 [x] Received data appended to client input buffer
 [x] Full IRC commands extracted using \r\n
 [x] Multiple commands can be processed from one recv()
+[x] Partial commands are buffered until complete
 [x] Disconnected clients are deleted from _clients
+[x] Disconnected clients are removed from channels
 ```
 
-### Dispatcher
+---
+
+## Dispatcher
 
 ```text
 [x] getCommandName() added
@@ -102,15 +128,25 @@ The remaining mandatory work is mainly the rest of MODE, channel mode behavior, 
     - INVITE
     - TOPIC
     - MODE
+    - CAP
+    - PING
+    - USERHOST
 [x] Unknown commands detected
 [x] Unknown commands send numeric 421 reply to the client
 [x] Commands that require registration are blocked before registration
 [x] Numeric 451 is sent when unregistered clients try restricted commands
-[x] Commands are strict uppercase for now
-[x] Lowercase / mixed-case commands are treated as unknown
 ```
 
-### Registration
+Note:
+
+```text
+Commands are handled in uppercase when using nc.
+Real IRC clients such as AdiIRC handle user input like /join or /mode and send proper IRC commands to the server.
+```
+
+---
+
+## Registration
 
 ```text
 [x] Client stores pass status
@@ -131,10 +167,13 @@ The remaining mandatory work is mainly the rest of MODE, channel mode behavior, 
 [x] Wrong password detected
 [x] PASS after registration rejected
 [x] USER after registration rejected
+[x] Malformed USER rejected with numeric 461
 [x] Welcome numeric 001 sent after registration
 ```
 
-### Replies
+---
+
+## Replies
 
 ```text
 [x] sendReply() added
@@ -156,18 +195,25 @@ The remaining mandatory work is mainly the rest of MODE, channel mode behavior, 
 [x] No recipient 411 sent
 [x] No text to send 412 sent
 [x] Not on channel 442 sent
-[x] User not in channel 441 sent for KICK target errors
-[x] User already on channel 443 sent for INVITE target already in channel
+[x] User not in channel 441 sent
+[x] User already on channel 443 sent
 [x] Channel operator privilege error 482 sent
 [x] Topic numeric 331 sent when no topic is set
 [x] Topic numeric 332 sent when topic exists
 [x] Invite confirmation numeric 341 sent
 [x] Channel mode numeric 324 sent
+[x] Channel full numeric 471 sent
+[x] Unknown mode numeric 472 sent
 [x] Invite-only join error 473 sent
-[x] Unknown mode numeric 472 prepared
+[x] Bad channel key numeric 475 sent
+[x] USERHOST numeric 302 added for real IRC client compatibility
+[x] PONG reply added for PING
+[x] CAP minimal reply added for real IRC client compatibility
 ```
 
-### Channel foundation
+---
+
+## Channel foundation
 
 ```text
 [x] Channel.hpp created
@@ -175,13 +221,13 @@ The remaining mandatory work is mainly the rest of MODE, channel mode behavior, 
 [x] Channel constructors/destructor added
 [x] Channel stores name
 [x] Channel stores topic
-[x] Channel stores password/key placeholder for mode +k
+[x] Channel stores password/key
 [x] Channel stores members using std::vector<Client*>
 [x] Channel stores operators using std::vector<Client*>
 [x] Channel stores invited users using std::vector<Client*>
 [x] Channel stores invite-only mode for +i
-[x] Channel stores topic restriction placeholder for mode +t
-[x] Channel stores user limit placeholder for mode +l
+[x] Channel stores topic restriction mode for +t
+[x] Channel stores user limit for +l
 [x] Channel exposes members through getMembers()
 [x] Channel can add members
 [x] Channel can remove members
@@ -194,11 +240,44 @@ The remaining mandatory work is mainly the rest of MODE, channel mode behavior, 
 [x] Channel can check if a client is invited
 [x] Channel can set topic
 [x] Channel can check if topic exists
+[x] Channel can set and clear password/key
+[x] Channel can set and clear user limit
 [x] Channel can set invite-only mode
-[x] Channel can check invite-only mode
-[x] Channel can build names list
-[x] Channel.cpp added to Makefile
-[x] Project compiles with Channel.cpp
+[x] Channel can set topic restriction mode
+[x] Channel can build names list with @ for operators
+```
+
+---
+
+# Mandatory IRC commands
+
+## PASS
+
+```text
+[x] Correct password accepted
+[x] Missing password rejected with 461
+[x] Wrong password rejected with 464
+[x] PASS after registration rejected with 462
+```
+
+## NICK
+
+```text
+[x] NICK sets nickname
+[x] Missing nickname rejected with 431
+[x] Duplicate nickname rejected with 433
+[x] NICK with leading ':' cleaned for real client compatibility
+```
+
+## USER
+
+```text
+[x] USER sets username and realname
+[x] USER after registration rejected with 462
+[x] USER missing parameters rejected with 461
+[x] Malformed USER rejected with 461
+[x] USER titi 0 * :titi accepted
+[x] USER titi -0 :titi rejected
 ```
 
 ---
@@ -216,19 +295,21 @@ The remaining mandatory work is mainly the rest of MODE, channel mode behavior, 
 [x] Send JOIN message to all channel members
 [x] Send names list reply 353
 [x] Send end of names reply 366
-[x] Test JOIN with one client
-[x] Test JOIN with two clients
-[x] Test JOIN error 461
-[x] Test JOIN error 403
 [x] Check invite-only mode
 [x] Block non-invited user from invite-only channel
 [x] Allow invited user to join invite-only channel
 [x] Remove invited status after successful JOIN
+[x] Check channel key/password
+[x] Block user with numeric 475 when key is missing/wrong
+[x] Allow user to join with correct key
+[x] Check user limit
+[x] Block user with numeric 471 when channel is full
+[x] Test JOIN with one client
+[x] Test JOIN with two clients
+[x] Test JOIN error 461
+[x] Test JOIN error 403
 [x] Test invite-only JOIN blocked with numeric 473
 [x] Test invited user can JOIN after INVITE
-[ ] Check channel key/password
-[ ] Check user limit
-[ ] Send topic reply if topic exists
 ```
 
 ---
@@ -251,6 +332,7 @@ The remaining mandatory work is mainly the rest of MODE, channel mode behavior, 
 [x] Test PRIVMSG no such channel 403
 [x] Test PRIVMSG not on channel 442
 [x] Test PRIVMSG no such nick/channel 401
+[x] Test channel messages between AdiIRC and nc
 ```
 
 ---
@@ -261,7 +343,7 @@ The remaining mandatory work is mainly the rest of MODE, channel mode behavior, 
 [x] Implement TOPIC
 [x] Implement KICK
 [x] Implement INVITE
-[~] Implement MODE
+[x] Implement MODE
 ```
 
 ## TOPIC
@@ -280,8 +362,11 @@ The remaining mandatory work is mainly the rest of MODE, channel mode behavior, 
 [x] TOPIC numeric 332 implemented
 [x] TOPIC numeric 403 implemented
 [x] TOPIC numeric 442 implemented
-[x] TOPIC tested
-[ ] TOPIC respects +t topic restriction
+[x] TOPIC respects +t topic restriction
+[x] Non-operator cannot change topic when +t is active
+[x] Operator can change topic when +t is active
+[x] TOPIC tested with nc
+[x] TOPIC tested with AdiIRC
 ```
 
 ## KICK
@@ -309,6 +394,7 @@ The remaining mandatory work is mainly the rest of MODE, channel mode behavior, 
 [x] KICK numeric 482 implemented
 [x] KICK numeric 441 implemented
 [x] KICK tested
+[x] KICK tested through +o operator privilege
 ```
 
 ## INVITE
@@ -327,15 +413,12 @@ The remaining mandatory work is mainly the rest of MODE, channel mode behavior, 
 [x] INVITE stores invited user in Channel
 [x] INVITE sends numeric 341 to inviter
 [x] INVITE sends INVITE message to invited user
+[x] INVITE allows invited user to join +i channel
 [x] Test INVITE success
 [x] Test INVITE sends 341
 [x] Test INVITE sends message to invited user
 [x] Test INVITE target already in channel with numeric 443
-[ ] Test INVITE missing parameters
-[ ] Test INVITE no such nick
-[ ] Test INVITE no such channel
-[ ] Test INVITE inviter not in channel
-[ ] Test INVITE inviter not operator
+[x] Test INVITE with invite-only mode active
 ```
 
 ## MODE
@@ -350,21 +433,20 @@ The remaining mandatory work is mainly the rest of MODE, channel mode behavior, 
 [x] MODE checks channel exists
 [x] MODE checks user is in channel
 [x] MODE checks user is operator before changing modes
+[x] MODE handles combined modes such as +it
 [x] MODE +i activates invite-only mode
 [x] MODE -i disables invite-only mode
-[x] MODE +i broadcasts mode change to channel
-[x] MODE -i broadcasts mode change to channel
-[x] Test MODE +i
-[x] Test MODE -i
-[x] Test MODE query 324
-[x] Test MODE missing parameters 461
-[x] Test MODE no such channel 403
-[x] Test MODE user not in channel 442
-[x] Test MODE user not operator 482
-[ ] MODE +t / -t topic restricted to operators
-[ ] MODE +k / -k channel key/password
-[ ] MODE +o / -o give/take operator privilege
-[ ] MODE +l / -l set/remove user limit
+[x] MODE +t activates topic restriction
+[x] MODE -t disables topic restriction
+[x] MODE +k sets channel key/password
+[x] MODE -k removes channel key/password
+[x] MODE +l sets user limit
+[x] MODE -l removes user limit
+[x] MODE +o gives channel operator privilege
+[x] MODE -o removes channel operator privilege
+[x] MODE broadcasts mode changes to channel members
+[x] MODE query shows active channel modes
+[x] MODE unknown mode sends numeric 472
 ```
 
 ---
@@ -372,12 +454,52 @@ The remaining mandatory work is mainly the rest of MODE, channel mode behavior, 
 # MODE requirements
 
 ```text
-[~] Implement MODE
+[x] Implement MODE
 [x] +i / -i invite-only
-[ ] +t / -t topic restricted to operators
-[ ] +k / -k channel key/password
-[ ] +o / -o give/take operator privilege
-[ ] +l / -l set/remove user limit
+[x] +t / -t topic restricted to operators
+[x] +k / -k channel key/password
+[x] +o / -o give/take operator privilege
+[x] +l / -l set/remove user limit
+```
+
+---
+
+# Real IRC client compatibility
+
+Reference client:
+
+```text
+AdiIRC
+```
+
+Connection settings tested:
+
+```text
+Server: 127.0.0.1
+Port: 6667
+SSL: off
+Password: con
+Nick: roger
+Username: roger
+Fullname: roger
+```
+
+Real client support added:
+
+```text
+[x] CAP LS 302 handled
+[x] CAP LIST handled without error
+[x] CAP END handled without error
+[x] PING handled with PONG
+[x] USERHOST handled with numeric 302
+[x] AdiIRC connects without unknown command errors
+[x] AdiIRC receives welcome message
+[x] AdiIRC joins #test
+[x] AdiIRC uses /mode
+[x] AdiIRC uses /topic
+[x] AdiIRC sends messages to channel
+[x] nc client receives messages from AdiIRC
+[x] AdiIRC receives messages from nc client
 ```
 
 ---
@@ -395,6 +517,7 @@ The remaining mandatory work is mainly the rest of MODE, channel mode behavior, 
 [x] Test missing NICK
 [x] Test duplicate NICK
 [x] Test USER registration
+[x] Test malformed USER
 [x] Test unknown command
 [x] Test numeric 421 for unknown command
 [x] Test restricted commands before registration
@@ -412,32 +535,67 @@ The remaining mandatory work is mainly the rest of MODE, channel mode behavior, 
 [x] Test INVITE
 [x] Test MODE +i
 [x] Test MODE -i
+[x] Test MODE +t
+[x] Test MODE -t
+[x] Test MODE +k
+[x] Test MODE -k
+[x] Test MODE +l
+[x] Test MODE -l
+[x] Test MODE +o
+[x] Test MODE -o
 [x] Test invite-only JOIN blocked
 [x] Test invited user can JOIN invite-only channel
-[ ] Test partial messages manually
-[ ] Test multiple commands in one packet
-[ ] Test USER with missing parameters
-[ ] Test MODE +t / -t
-[ ] Test TOPIC with +t active
-[ ] Test MODE +k / -k
-[ ] Test JOIN with channel key/password
-[ ] Test MODE +l / -l
-[ ] Test JOIN with user limit
-[ ] Test MODE +o / -o
-[ ] Test disconnect while inside channel
-[ ] Test with real IRC client
-[ ] Choose one reference IRC client for evaluation
+[x] Test JOIN with channel key/password
+[x] Test JOIN with user limit
+[x] Test partial messages manually with Ctrl+D
+[x] Test multiple commands in one packet with printf
+[x] Test disconnect while inside channel
+[x] Test empty channel deletion
+[x] Test operator disconnect cleanup
+[x] Test with real IRC client
+[x] Choose AdiIRC as reference IRC client
+[x] Final grep for send()
+[x] Final grep for recv()
+[x] Final grep for std::cout
 ```
 
 ---
 
-# Later cleanup / improvement list
+# Final checks performed
 
-## General code cleanup
+```bash
+make re
+grep -R "send(" -n src include
+grep -R "recv(" -n src include
+grep -R "std::cout" -n src include
+printf "PASS con\r\nNICK roger\r\nUSER roger 0 * :roger\r\nJOIN #final\r\nMODE #final +it\r\nMODE #final\r\n" | nc -C 127.0.0.1 6667
+```
+
+Expected final grep status:
 
 ```text
-[ ] Reduce debug std::cout messages before final evaluation
-[ ] Keep only useful debug messages during development
+send() appears only in ServerNetwork.cpp
+recv() appears only in ServerNetwork.cpp
+only minimal std::cout output remains
+```
+
+Final observed behavior:
+
+```text
+Registration works
+JOIN works
+First channel user becomes operator
+MODE +it works
+MODE query returns +it
+```
+
+---
+
+# Final cleanup
+
+```text
+[x] Reduce debug std::cout messages before final evaluation
+[x] Keep only useful server status output
 [x] Split Server.cpp
 [x] Move reply helpers to ServerReplies.cpp
 [x] Move command routing to ServerCommands.cpp
@@ -447,106 +605,50 @@ The remaining mandatory work is mainly the rest of MODE, channel mode behavior, 
 [x] Keep KICK function shorter with parseKickArgs()
 [x] Keep INVITE function shorter with parseInviteArgs()
 [x] Keep MODE parsing separate with parseModeArgs()
-[ ] Keep functions short and focused
-[ ] Keep helper functions private when they are only used inside Server
-[ ] Keep data members private
-[ ] Use public getters/setters only when another class truly needs them
-```
-
-## Server cleanup
-
-```text
-[x] Add/verify basic Server destructor
-[x] Close all open fds safely
-[x] Delete all Client objects safely
-[x] Delete all Channel objects safely
-[ ] Prevent Server copying
-[x] Improve basic poll() handling:
-    - POLLHUP
-    - POLLERR
-    - POLLNVAL
-[ ] Improve recv() error handling:
-    - EAGAIN
-    - EWOULDBLOCK
-    - EINTR
-[x] Improve send() handling:
-    - partial send
-    - failed send
-    - disconnected client during send
-[x] Use an output buffer and POLLOUT for stricter non-blocking send handling
-```
-
-## Input validation
-
-```text
-[x] Replace atoi() with safer port parsing
-[x] Reject non-numeric ports
-[x] Reject negative ports
-[x] Reject port 0
-[x] Reject ports above 65535
-[ ] Decide if privileged ports under 1024 should be rejected or just allowed to fail
-```
-
-## IRC command behavior
-
-```text
-[ ] Decide final behavior for lowercase commands
-    Current decision: strict uppercase only
-[ ] Improve USER parsing
-[ ] Improve NICK validation
-[ ] Handle nickname change after registration
-[ ] Make sure wrong PASS behavior matches expected IRC behavior
-[ ] Verify numeric replies with chosen real IRC client
-```
-
-## Registration replies
-
-```text
-[ ] Possibly add more welcome numerics after 001:
-    - 002 Your host
-    - 003 Server created
-    - 004 Server info
-[x] Format basic replies consistently with :ircserv prefix
-[x] Make sure target is * before nickname exists
-[x] Make sure target is nickname after nickname exists
-```
-
-## Channels
-
-```text
-[ ] Remove disconnected client from all channels
-[ ] Delete empty channels if needed
-[ ] Decide if unused Channel::broadcast() should stay or be removed
-[x] Activate invite-only mode logic
-[ ] Activate topic restriction logic
-[ ] Activate password/key logic
-[ ] Activate user limit logic
-[x] Add invited clients list for INVITE / +i
-[x] Connect invited clients list to JOIN when +i is active
+[x] Remove unused empty src/commands folder
+[x] Keep data members private
+[x] Use public getters/setters only when another class needs them
 ```
 
 ---
 
-# Next recommended implementation order
+# Known decisions / not implemented
 
 ```text
-1. MODE +t / -t
-2. Connect TOPIC restriction to +t
-3. MODE +k / -k
-4. Connect JOIN to channel key/password
-5. MODE +l / -l
-6. Connect JOIN to user limit
-7. MODE +o / -o
-8. Disconnect cleanup from channels
-9. Real IRC client testing
-10. Final cleanup and defense preparation
+[x] No bonus part implemented
+[x] No server-to-server communication implemented
+[x] No IRC client implemented
+[x] No fork used
+[x] No external libraries used
+[x] No Libft used
+[x] No Boost used
+[x] Lowercase commands in nc are not normalized by the server
+[x] Real IRC client commands work because the client sends proper IRC commands
+[x] Full RFC coverage is not the goal
+[x] Channel can temporarily have no operator if all operators leave or remove their own privilege
+[x] This is accepted for mandatory behavior because the subject only requires give/take operator privilege
 ```
 
 ---
 
-# Current git checkpoint
+# Remaining TODO before submission
+
+```text
+[ ] make fclean
+[ ] make
+[ ] Run ./ircserv 6667 con once more
+[ ] Quick final nc test
+[ ] Review README.md
+[ ] Review this track_of_progress.md
+[ ] Final git status
+[ ] Final commit
+```
+
+---
+
+# Suggested final git checkpoint
 
 ```bash
 git add .
-git commit -m "Implement invite-only mode and connect it to JOIN"
+git commit -m "Complete mandatory IRC server"
 ```
