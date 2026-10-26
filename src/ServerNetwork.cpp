@@ -18,13 +18,7 @@ void Server::acceptClient()
 	if (client_fd == -1)
 		return ;
 
-	int flags = fcntl(client_fd, F_GETFL, 0);
-	if (flags == -1)
-	{
-		close(client_fd);
-		return ;
-	}
-	if (fcntl(client_fd, F_SETFL, flags | O_NONBLOCK) == -1)
+	if (fcntl(client_fd, F_SETFL, O_NONBLOCK) == -1)
 	{
 		close(client_fd);
 		return ;
@@ -41,13 +35,21 @@ void Server::acceptClient()
 void Server::handleData(int fd)
 {
 	char		buffer[1024];
-	int			bytes;
+	ssize_t			bytes;
 	Client		*client;
 	std::string	message;
 
 	bytes = recv(fd, buffer, sizeof(buffer) - 1, 0);
-	if (bytes <= 0)
+	if (bytes == 0)
 	{
+		removeClient(fd);
+		return ;
+	}
+	if (bytes < 0)
+	{
+		if (errno == EAGAIN || errno == EWOULDBLOCK
+				|| errno == EINTR)
+			return ;
 		removeClient(fd);
 		return ;
 	}
@@ -77,7 +79,7 @@ void Server::handleWrite(int fd)
 		return ;
 	}
 	bytes = send(fd, client->getOutputBuffer().c_str(),
-			client->getOutputBuffer().length(), 0);
+			client->getOutputBuffer().length(), MSG_NOSIGNAL);
 	if (bytes > 0)
 	{
 		client->eraseOutput(bytes);

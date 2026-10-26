@@ -21,10 +21,7 @@ Server::Server(int port, std::string password)
 			&opt, sizeof(int)) < 0)
 		throw std::runtime_error("socketopt() failed");
 
-	int flags = fcntl(_server_fd, F_GETFL, 0);
-	if (flags == -1)
-		throw std::runtime_error("fcntl() failed");
-	if (fcntl(_server_fd, F_SETFL, flags | O_NONBLOCK) == -1)
+	if (fcntl(_server_fd, F_SETFL, O_NONBLOCK) == -1)
 		throw std::runtime_error("fcntl() failed");
 
 	sockaddr_in addr;
@@ -72,7 +69,7 @@ void Server::run()
 		int ret = poll(&_fds[0], _fds.size(), -1);
 		if (ret == -1)
 			throw std::runtime_error("poll() failed");
-		for (size_t i = 0; i < _fds.size(); ++i)
+		for (size_t i = 0; i < _fds.size(); )
 		{
 			int fd = _fds[i].fd;
 			short revents = _fds[i].revents;
@@ -81,6 +78,8 @@ void Server::run()
 			{
 				if (fd != _server_fd)
 					removeClient(fd);
+				if (i < _fds.size() && _fds[i].fd == fd)
+					++i;
 				continue ;
 			}
 			if (revents & POLLIN)
@@ -93,6 +92,8 @@ void Server::run()
 			if (fd != _server_fd && _clients.find(fd) != _clients.end()
 				&& (revents & POLLOUT))
 				handleWrite(fd);
+			if (i < _fds.size() && _fds[i].fd == fd)
+				++i;
 		}
 	}
 }
