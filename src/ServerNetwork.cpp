@@ -40,18 +40,11 @@ void Server::handleData(int fd)
 	std::string	message;
 
 	bytes = recv(fd, buffer, sizeof(buffer) - 1, 0);
-	if (bytes == 0)
+	if (bytes <= 0)
 	{
-		removeClient(fd);
-		return ;
-	}
-	if (bytes < 0)
-	{
-		if (errno == EAGAIN || errno == EWOULDBLOCK
-				|| errno == EINTR)
-			return ;
-		removeClient(fd);
-		return ;
+    	if (bytes == 0)
+        	removeClient(fd);
+    	return ;
 	}
 	buffer[bytes] = '\0';
 	client = _clients[fd];
@@ -80,17 +73,11 @@ void Server::handleWrite(int fd)
 	}
 	bytes = send(fd, client->getOutputBuffer().c_str(),
 			client->getOutputBuffer().length(), MSG_NOSIGNAL);
-	if (bytes > 0)
-	{
-		client->eraseOutput(bytes);
-		if (client->hasOutput() == false)
-			disablePollOut(fd);
-		return ;
-	}
-	if (bytes == -1 && (errno == EAGAIN || errno == EWOULDBLOCK
-			|| errno == EINTR))
-		return ;
-	removeClient(fd);
+	if (bytes <= 0)
+    return ;
+	client->eraseOutput(bytes);
+	if (client->hasOutput() == false)
+    	disablePollOut(fd);
 }
 
 void	Server::removeClient(int fd)
